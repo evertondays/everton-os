@@ -1,0 +1,68 @@
+import { Suspense, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { useT } from '../../i18n/index.ts'
+import { apps } from '../../system/apps.ts'
+import { type AppWindow, AppWindowContext } from '../../system/os.ts'
+import { useWindow } from './useWindow.ts'
+import {
+  type Win,
+  closeWindow,
+  registerWindow,
+  setWindowTitle,
+  windowBlurred,
+  windowFocused,
+  windowMinimized,
+} from './windows.ts'
+
+export const PANEL_HEIGHT = 48
+
+/** Size and position for a new window: the app's default, cascaded and kept on screen. */
+function placement(win: Win) {
+  const app = apps[win.appId]
+  const screenWidth = document.documentElement.clientWidth
+  const screenHeight = document.documentElement.clientHeight - PANEL_HEIGHT
+  const width = Math.min(app.width, screenWidth - 32)
+  const height = Math.min(app.height, screenHeight - 32)
+  const step = (win.slot - 1) % 6
+  return {
+    width,
+    height,
+    x: Math.max(16, Math.min((screenWidth - width) / 2 - 90 + step * 36, screenWidth - width - 16)),
+    y: Math.max(16, Math.min((screenHeight - height) / 2 - 75 + step * 30, screenHeight - height - 16)),
+  }
+}
+
+export function Window({ win }: { win: Win }) {
+  const t = useT()
+  const app = apps[win.appId]
+  const { id } = win
+
+  const { container, handle } = useWindow({
+    title: win.title ?? t(app.name),
+    ...placement(win),
+    bottom: PANEL_HEIGHT,
+    onClose: () => closeWindow(id),
+    onFocus: () => windowFocused(id),
+    onBlur: () => windowBlurred(id),
+    onMinimize: () => windowMinimized(id, true),
+    onRestore: () => windowMinimized(id, false),
+  })
+
+  useEffect(() => registerWindow(id, () => handle.current), [id, handle])
+
+  const appWindow = useMemo<AppWindow>(
+    () => ({ setTitle: (title) => setWindowTitle(id, title), close: () => closeWindow(id) }),
+    [id],
+  )
+
+  if (!container) return null
+  const App = app.component
+  return createPortal(
+    <AppWindowContext.Provider value={appWindow}>
+      <Suspense fallback={<div className="app-loading" />}>
+        <App args={win.args} />
+      </Suspense>
+    </AppWindowContext.Provider>,
+    container,
+  )
+}

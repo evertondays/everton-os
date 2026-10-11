@@ -1,0 +1,296 @@
+/* The phone shell. Inspired by iOS, drawn with our own icons and the Inter font. */
+
+.ios {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: #1b4fb8;
+  background-size: cover;
+  color: #fff;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Status bar */
+
+.ios-status {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: env(safe-area-inset-top) 24px 0;
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.ios-status.is-over-app {
+  color: var(--text);
+}
+
+.ios-status-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Lock screen */
+
+.ios-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background-size: cover;
+  outline: 0;
+  touch-action: none;
+  transition:
+    transform 0.26s ease-in,
+    opacity 0.26s;
+}
+
+.ios-lock.is-leaving {
+  opacity: 0;
+  transform: translateY(-100%) !important;
+}
+
+.ios-lock-shade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding: 76px 24px 12px;
+  background: rgba(8, 12, 24, 0.22);
+}
+
+.ios-lock-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.ios-lock-time span:last-child {
+  font-size: 92px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.ios-lock-hint {
+  margin-top: auto;
+  font-size: 15px;
+  font-weight: 500;
+  animation: ios-hint 2.4s ease-in-out infinite;
+}
+
+@keyframes ios-hint {
+  50% {
+    opacity: 0.45;
+    transform: translateY(-6px);
+  }
+}
+
+.ios-lock-bar,
+.ios-homebar span {
+  display: block;
+  width: 136px;
+  height: 5px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.ios-lock-bar {
+  margin-top: 16px;
+}
+
+/* Home screen */
+
+.ios-home {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: 56px;
+}
+
+.ios-pages {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.ios-page {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-content: start;
+  gap: 22px 0;
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+  padding: 16px max(14px, calc((100% - 480px) / 2));
+  scroll-snap-align: start;
+}
+
+.ios-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.ios-icon:active .app-icon {
+  filter: brightness(0.75);
+  transform: scale(0.94);
+}
+
+.ios-icon .app-icon {
+  transition:
+    transform 0.12s,
+    filter 0.12s;
+}
+
+.ios-icon span:last-child {
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ios-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px;
+}
+
+.ios-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.ios-dots span.is-active {
+  background: #fff;
+}
+
+.ios-dock {
+  display: flex;
+  justify-content: space-around;
+  flex: none;
+  width: min(calc(100% - 24px), 420px);
+  margin: 8px auto calc(14px + env(safe-area-inset-bottom));
+  padding: 14px 10px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(24px) saturate(1.5);
+}
+
+/* Apps */
+
+.ios-app {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  user-select: text;
+  animation: ios-open 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes ios-open {
+  from {
+    opacity: 0;
+    border-radius: 40px;
+    transform: scale(0.15);
+  }
+}
+
+.ios-app.is-closing {
+  animation: ios-close 0.22s ease-in forwards;
+}
+
+@keyframes ios-close {
+  to {
+    opacity: 0;
+    border-radius: 40px;
+    transform: scale(0.15);
+  }
+}
+
+.ios-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  height: 44px;
+  margin-top: calc(44px + env(safe-area-inset-top));
+  padding: 0 88px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ios-nav h1 {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ios-back {
+  position: absolute;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  color: var(--accent-strong);
+  font-size: 16px;
+}
+
+.ios-app-body {
+  flex: 1;
+  min-height: 0;
+  /* Room for the home bar. */
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+}
+
+/* The file name is already in the navigation bar. */
+.ios-app .toolbar-title {
+  visibility: hidden;
+}
+
+.ios-homebar {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  height: calc(22px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  color: var(--text);
+  touch-action: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-app,
+  .ios-app.is-closing,
+  .ios-lock-hint {
+    animation-duration: 0.01s;
+  }
+}

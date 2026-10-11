@@ -1,0 +1,149 @@
+{
+  "basics": {
+    "name": "Everton Dias",
+    "label": { "pt": "Desenvolvedor de Software", "en": "Software Developer" },
+    "image": null,
+    "email": "voce@exemplo.com",
+    "url": "https://exemplo.com",
+    "summary": {
+      "pt": "Texto de exemplo: escreva aqui duas ou três frases sobre quem você é, o que constrói e o que procura. Este resumo aparece no app Sobre mim, no comando whoami e na versão clássica.",
+      "en": "Sample text: write two or three sentences about who you are, what you build and what you are looking for. This summary shows up in the About me app, the whoami command and the classic version."
+    },
+    "location": { "city": "Sua cidade", "region": "UF", "countryCode": "BR" },
+    "profiles": [
+      { "network": "GitHub", "username": "seu-usuario", "url": "https://github.com/seu-usuario" },
+      { "network": "LinkedIn", "username": "seu-usuario", "url": "https://www.linkedin.com/in/seu-usuario" }
+    ]
+  },
+  "work": [
+    {
+      "id": "empresa-exemplo",
+      "name": "Empresa Exemplo",
+      "position": { "pt": "Desenvolvedor Front-end", "en": "Front-end Developer" },
+      "url": "https://exemplo.com",
+      "location": { "pt": "Remoto", "en": "Remote" },
+      "startDate": "2024-03",
+      "endDate": null,
+      "summary": {
+        "pt": "Exemplo: descreva em uma frase o produto e o seu papel no time.",
+        "en": "Sample: describe the product and your role on the team in one sentence."
+      },
+      "highlights": [
+        { "pt": "Exemplo de resultado com número: reduzi o tempo de carregamento em 40%.", "en": "Sample result with a number: cut load time by 40%." },
+        { "pt": "Exemplo de entrega: liderei a migração do design system para React.", "en": "Sample delivery: led the design system migration to React." }
+      ],
+      "keywords": ["React", "TypeScript", "Vite"]
+    },
+    {
+      "id": "outra-empresa",
+      "name": "Outra Empresa",
+      "position": { "pt": "Desenvolvedor Júnior", "en": "Junior Developer" },
+      "url": "https://exemplo.com",
+      "location": { "pt": "Sua cidade, UF", "en": "Your city, BR" },
+      "startDate": "2022-01",
+      "endDate": "2024-02",
+      "summary": {
+        "pt": "Exemplo: descreva o contexto e as responsabilidades principais.",
+        "en": "Sample: describe the context and your main responsibilities."
+      },
+      "highlights": [
+        { "pt": "Exemplo: construí APIs REST consumidas por três produtos.", "en": "Sample: built REST APIs consumed by three products." }
+      ],
+      "keywords": ["Node.js", "PostgreSQL"]
+    }
+  ],
+  "education": [
+    {
+      "id": "graduacao",
+      "institution": "Universidade Exemplo",
+      "area": { "pt": "Ciência da Computação", "en": "Computer Science" },
+      "studyType": { "pt": "Bacharelado", "en": "Bachelor's degree" },
+      "startDate": "2018-02",
+      "endDate": "2022-12"
+    }
+  ],
+  "certificates": [
+    {
+      "id": "certificado-exemplo",
+      "name": { "pt": "Certificado de exemplo", "en": "Sample certificate" },
+      "issuer": "Instituição Exemplo",
+      "date": "2023-08",
+      "url": "https://exemplo.com"
+    }
+  ],
+  "skills": [
+    { "name": { "pt": "Front-end", "en": "Front-end" }, "keywords": ["React", "TypeScript", "HTML", "CSS", "Vite"] },
+    { "name": { "pt": "Back-end", "en": "Back-end" }, "keywords": ["Node.js", "PostgreSQL", "REST"] },
+    { "name": { "pt": "Ferramentas", "en": "Tooling" }, "keywords": ["Git", "Docker", "Linux", "CI/CD"] }
+  ],
+  "languages": [
+    { "language": { "pt": "Português", "en": "Portuguese" }, "fluency": { "pt": "Nativo", "en": "Native" } },
+    { "language": { "pt": "Inglês", "en": "English" }, "fluency": { "pt": "Avançado", "en": "Advanced" } }
+  ],
+  "projects": [
+    {
+      "id": "everton-os",
+      "name": "Everton OS",
+      "description": {
+        "pt": "Este portfólio: um sistema operacional no navegador, com desktop estilo Linux e tela inicial estilo iOS no celular.",
+        "en": "This portfolio: an operating system in the browser, with a Linux-style desktop and an iOS-style home screen on phones."
+      },
+      "highlights": [
+        { "pt": "Gerenciador de janelas com WinBox.js atrás de um hook próprio.", "en": "Window manager built on WinBox.js behind a custom hook." },
+        { "pt": "Sistema de arquivos virtual gerado a partir de um único currículo.json.", "en": "Virtual file system generated from a single curriculo.json." },
+        { "pt": "Os mesmos apps rodam em janela no desktop e em tela cheia no celular.", "en": "The same apps run in a window on desktop and full screen on phones." }
+      ],
+      "keywords": ["React", "TypeScript", "Vite", "WinBox.js"],
+      "url": "https://github.com/seu-usuario/everton-os",
+      "images": [
+        { "caption": { "pt": "Área de trabalho", "en": "Desktop" } },
+        { "caption": { "pt": "Tela inicial no celular", "en": "Phone home screen" } }
+      ]
+    },
+    {
+      "id": "projeto-exemplo",
+      "name": "Projeto Exemplo",
+      "description": {
+        "pt": "Exemplo: descreva o problema que o projeto resolve e para quem.",
+        "en": "Sample: describe the problem the project solves and for whom."
+      },
+      "highlights": [
+        { "pt": "Exemplo: destaque uma decisão técnica interessante.", "en": "Sample: highlight an interesting technical decision." }
+      ],
+      "keywords": ["Node.js", "PostgreSQL"],
+      "url": "https://github.com/seu-usuario/projeto-exemplo",
+      "demo": "https://example.com",
+      "images": [{ "caption": { "pt": "Tela principal", "en": "Main screen" } }]
+    }
+  ],
+  "photos": [
+    { "caption": { "pt": "Evento de tecnologia", "en": "Tech event" } },
+    { "caption": { "pt": "Palestra", "en": "Talk" } },
+    { "caption": { "pt": "Time", "en": "Team" } }
+  ],
+  "meta": {
+    "pdf": { "pt": null, "en": null },
+    "bookmarks": [
+      { "name": "Wikipédia", "url": "https://pt.wikipedia.org" },
+      { "name": "Example", "url": "https://example.com" }
+    ],
+    "trash": [
+      {
+        "id": "curriculo-2019.md",
+        "name": { "pt": "curriculo-2019-final-v7.md", "en": "resume-2019-final-v7.md" },
+        "content": {
+          "pt": "# Currículo (2019)\n\n**Objetivo:** qualquer vaga, por favor.\n\n## Habilidades\n\n- Pacote Office (avançado)\n- Digitação rápida\n- \"Proativo\" e \"dinâmico\"\n\n> Arquivado com carinho. A versão atual está na área de trabalho.",
+          "en": "# Resume (2019)\n\n**Objective:** any job, please.\n\n## Skills\n\n- Office suite (advanced)\n- Fast typing\n- \"Proactive\" and \"dynamic\"\n\n> Archived with love. The current version is on the desktop."
+        }
+      },
+      {
+        "id": "projetos-abandonados.md",
+        "name": { "pt": "projetos-abandonados.md", "en": "abandoned-projects.md" },
+        "content": {
+          "pt": "# Projetos abandonados\n\n- **todo-app-17**: a décima sétima lista de tarefas. Também não terminei.\n- **meu-framework**: durou um fim de semana.\n- **blog**: três posts sobre como montar o blog.\n\nTodo projeto que funciona hoje começou como um destes.",
+          "en": "# Abandoned projects\n\n- **todo-app-17**: the seventeenth to-do list. Didn't finish it either.\n- **my-framework**: lasted one weekend.\n- **blog**: three posts about setting up the blog.\n\nEvery project that works today started as one of these."
+        }
+      }
+    ]
+  }
+}

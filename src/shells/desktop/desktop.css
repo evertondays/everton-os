@@ -1,0 +1,533 @@
+/* The desktop shell: wallpaper, icons, panel, menu and the look of WinBox windows. */
+
+.desktop,
+.login {
+  /* Not `fixed`: that would make a stacking context and trap the panel and the
+     menu underneath the windows, which WinBox appends to <body>. */
+  position: absolute;
+  inset: 0;
+  background-color: #1b4fb8;
+  background-size: cover;
+  user-select: none;
+}
+
+/* Desktop icons */
+
+.desktop-icons {
+  position: absolute;
+  inset: 0 0 48px;
+  display: flex;
+  flex-flow: column wrap;
+  align-content: flex-start;
+  gap: 6px;
+  padding: 18px 14px;
+}
+
+.desktop-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 104px;
+  padding: 10px 6px 8px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  overflow-wrap: anywhere;
+}
+
+.desktop-icon:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.desktop-icon.is-selected {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* Panel */
+
+.panel {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 90000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 48px;
+  padding: 0 8px;
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(1.6);
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+.panel-button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 9px;
+}
+
+.panel-button:hover,
+.panel-button.is-active {
+  background: var(--hover);
+}
+
+.panel-locale {
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.panel-separator {
+  flex: none;
+  width: 1px;
+  height: 24px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.panel-tasks {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel-task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 190px;
+  min-width: 44px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 9px;
+}
+
+.panel-task span:last-child {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-task:hover {
+  background: var(--hover);
+}
+
+.panel-task.is-focused {
+  background: var(--active);
+}
+
+/* Running indicator: wide under the focused window, a dot under the others. */
+.panel-task::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 6px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--text-dim);
+  transform: translateX(-50%);
+  transition: width 0.15s;
+}
+
+.panel-task.is-focused::after {
+  width: 22px;
+  background: var(--accent);
+}
+
+.panel-task.is-minimized {
+  opacity: 0.7;
+}
+
+.panel-tray {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.panel-status {
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+  color: var(--text-dim);
+}
+
+.panel-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0 8px 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.panel-clock span:first-child {
+  font-weight: 600;
+}
+
+/* Applications menu */
+
+.menu {
+  position: fixed;
+  bottom: 56px;
+  left: 8px;
+  z-index: 90001;
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  max-height: min(560px, calc(100vh - 72px));
+  border-radius: 14px;
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  animation: menu-in 0.14s ease-out;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.menu-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 12px 6px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.menu-search:focus-within {
+  border-color: var(--accent);
+}
+
+.menu-search input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+}
+
+.menu-apps {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 8px;
+  overflow: auto;
+}
+
+.menu-apps button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 9px;
+  text-align: left;
+  font-weight: 550;
+}
+
+.menu-apps button:hover,
+.menu-apps button:focus-visible {
+  background: var(--hover);
+}
+
+.menu-empty {
+  padding: 24px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.menu-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.menu-user {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-footer a {
+  font-size: 13px;
+}
+
+.menu-footer button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.menu-footer button:hover {
+  background: var(--hover);
+}
+
+/* Alt+Tab switcher */
+
+.switcher {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 90002;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100vw - 48px);
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--glass);
+  backdrop-filter: blur(28px);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  transform: translate(-50%, -50%);
+}
+
+.switcher-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 112px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.switcher-item span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switcher-item.is-selected {
+  background: var(--active);
+}
+
+/* Boot */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 32px;
+  background: #0b0d10;
+  color: #cfd6de;
+  font: 14px/1.7 var(--mono);
+}
+
+.boot-log {
+  white-space: pre-wrap;
+}
+
+.boot-ok {
+  color: #5fd98b;
+  white-space: pre;
+}
+
+.boot-skip {
+  color: #6a7482;
+  font-size: 12px;
+}
+
+/* Login */
+
+.login-shade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 7vh 24px 5vh;
+  background: rgba(8, 12, 24, 0.38);
+  backdrop-filter: blur(22px);
+  color: #fff;
+}
+
+.login-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 18px;
+}
+
+.login-clock span:first-child {
+  font-size: 72px;
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+.login-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 40px;
+  border-radius: 20px;
+  color: #fff;
+}
+
+.login-user:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.login-user .avatar {
+  margin-bottom: 12px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.login-name {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.login-label {
+  opacity: 0.85;
+}
+
+.login-enter {
+  margin-top: 16px;
+  padding: 8px 22px;
+  border-radius: 999px;
+  background: var(--accent);
+  font-weight: 600;
+}
+
+.login-classic,
+:root[data-theme='dark'] .login-classic {
+  color: #fff;
+  opacity: 0.9;
+}
+
+/* Windows (WinBox) */
+
+.winbox.eos-window {
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.eos-window .wb-header {
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text);
+}
+
+.eos-window .wb-body {
+  overflow: hidden;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.eos-window.max,
+.eos-window.max .wb-header,
+.eos-window.max .wb-body {
+  border-radius: 0;
+}
+
+/* A minimized window lives only in the panel. */
+.eos-window.min {
+  display: none;
+}
+
+.eos-window-content {
+  height: 100%;
+}
+
+.eos-window .wb-drag {
+  /* Balances the controls on the right so the title sits in the middle. */
+  padding-left: 106px;
+  text-align: center;
+}
+
+.eos-window .wb-title {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.eos-window:not(.focus) .wb-title,
+.eos-window:not(.focus) .wb-control {
+  opacity: 0.55;
+}
+
+.eos-window .wb-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+/* WinBox draws its controls with white bitmaps; these are redrawn as masks so they follow the theme. */
+.eos-window .wb-control * {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-image: none;
+  color: var(--text);
+}
+
+.eos-window .wb-control *::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  mask: var(--glyph) center / 10px no-repeat;
+}
+
+.eos-window .wb-control *:hover {
+  background-color: var(--active);
+}
+
+.eos-window .wb-control .wb-close:hover {
+  background-color: var(--danger);
+  color: #fff;
+}
+
+.eos-window .wb-min {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 8.5h8' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.eos-window .wb-max {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect x='1.3' y='1.3' width='7.4' height='7.4' rx='1.2' fill='none' stroke='black' stroke-width='1.3'/%3E%3C/svg%3E");
+}
+
+.eos-window .wb-close {
+  --glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5l7 7m0-7l-7 7' stroke='black' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
