@@ -13,10 +13,11 @@ pnpm lint
 
 ## Editando o currículo
 
-Todo o conteúdo sai de **`src/data/curriculo.json`** (formato baseado no [JSON Resume](https://jsonresume.org/)). O arquivo vem com textos de exemplo: troque pelos seus.
+Todo o conteúdo sai de **`src/data/curriculo.json`** (formato baseado no [JSON Resume](https://jsonresume.org/)).
 
 - Textos que mudam com o idioma são objetos `{ "pt": "…", "en": "…" }`; os demais são strings simples.
-- `basics.image`: caminho de uma foto dentro de `public/` (ex.: `"media/foto.jpg"`). Sem foto, aparecem as iniciais.
+- `basics.image`: caminho de uma foto dentro de `public/` (ex.: `"media/foto.jpg"`) ou uma URL. Sem foto, aparecem as iniciais.
+- `basics.intro`: versão de duas frases do resumo, usada no app Sobre mim. Sem ela, o app mostra `basics.summary` inteiro.
 - Imagens (`projects[].images`, `photos`, `certificates[].image`): `src` é um caminho dentro de `public/` ou uma URL. Sem `src`, é desenhado um placeholder.
 - `projects[].demo`: endereço que o app Navegador abre dentro de uma janela.
 - `meta.pdf`: caminhos dos PDFs do currículo dentro de `public/`, um por idioma (ex.: `{ "pt": "files/curriculo.pdf", "en": "files/resume.pdf" }`). Com `null`, o Visualizador desenha o currículo a partir dos dados e o botão vira "Salvar em PDF" (impressão da versão clássica).

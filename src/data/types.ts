@@ -14,7 +14,7 @@ export interface Work {
   location?: string
   startDate: string
   endDate: string | null
-  summary: string
+  summary?: string
   highlights: string[]
   keywords?: string[]
 }
@@ -24,8 +24,10 @@ export interface Education {
   institution: string
   area: string
   studyType: string
-  startDate: string
+  /** Leave out to show only when it was completed. */
+  startDate?: string
   endDate: string | null
+  summary?: string
 }
 
 export interface Certificate {
@@ -82,6 +84,8 @@ export interface Resume {
     image: string | null
     email: string
     url?: string
+    /** A two-sentence version of the summary for the About me app. Falls back to `summary`. */
+    intro?: string
     summary: string
     location: { city: string; region: string; countryCode: string }
     profiles: Profile[]

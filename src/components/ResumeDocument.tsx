@@ -42,7 +42,7 @@ export function ResumeDocument() {
             <p className="paper-meta">
               {[formatPeriod(work.startDate, work.endDate, locale), work.location].filter(Boolean).join(' · ')}
             </p>
-            <p>{work.summary}</p>
+            {work.summary && <p>{work.summary}</p>}
             <ul>
               {work.highlights.map((highlight) => (
                 <li key={highlight}>{highlight}</li>
@@ -73,6 +73,7 @@ export function ResumeDocument() {
             <p className="paper-meta">
               {education.institution} · {formatPeriod(education.startDate, education.endDate, locale)}
             </p>
+            {education.summary && <p>{education.summary}</p>}
           </div>
         ))}
         {resume.certificates.map((certificate) => (

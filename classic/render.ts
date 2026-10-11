@@ -51,7 +51,7 @@ export function renderClassic(resume: Resume, locale: Locale): string {
       (item) => `<article>
 <h3>${escape(item.position)} · ${escape(item.name)}</h3>
 <p class="meta">${escape([formatPeriod(item.startDate, item.endDate, locale), item.location].filter(Boolean).join(' · '))}</p>
-<p>${escape(item.summary)}</p>
+${item.summary ? `<p>${escape(item.summary)}</p>` : ''}
 ${list(item.highlights)}
 </article>`,
     )
@@ -77,6 +77,7 @@ ${list(item.highlights)}
       (item) => `<article>
 <h3>${escape(item.studyType)} · ${escape(item.area)}</h3>
 <p class="meta">${escape(item.institution)} · ${escape(formatPeriod(item.startDate, item.endDate, locale))}</p>
+${item.summary ? `<p>${escape(item.summary)}</p>` : ''}
 </article>`,
     ),
     ...resume.certificates.map(

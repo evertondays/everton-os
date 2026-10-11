@@ -48,6 +48,7 @@ export function educationMarkdown(education: Education[], locale: Locale): strin
       join(
         `## ${item.studyType} — ${item.area}`,
         `*${item.institution} · ${formatPeriod(item.startDate, item.endDate, locale)}*`,
+        item.summary,
       ),
     ),
   )

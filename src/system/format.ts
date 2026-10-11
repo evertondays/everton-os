@@ -11,8 +11,12 @@ export function formatMonth(date: string, locale: Locale): string {
   )
 }
 
-export function formatPeriod(start: string, end: string | null, locale: Locale): string {
+export function formatPeriod(start: string | undefined, end: string | null, locale: Locale): string {
   const present = locale === 'pt' ? 'atual' : 'present'
+  if (!start) {
+    if (!end) return present
+    return `${locale === 'pt' ? 'concluído em' : 'completed'} ${formatMonth(end, locale)}`
+  }
   return `${formatMonth(start, locale)} – ${end ? formatMonth(end, locale) : present}`
 }
 

@@ -21,7 +21,7 @@ export default function About() {
         <MapPin size={14} />
         {basics.location.city}, {basics.location.region}
       </p>
-      <p className="about-summary">{basics.summary}</p>
+      <p className="about-summary">{basics.intro ?? basics.summary}</p>
 
       <div className="about-actions">
         <button className="button is-primary" onClick={() => os.open('viewer', { path: RESUME_PATH })}>
