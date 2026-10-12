@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import { type AppSource, track } from '../analytics.ts'
 import type { AppArgs, AppId } from './apps.ts'
 import type { FsNode } from './fs.ts'
 
@@ -10,7 +11,8 @@ export type Shell = 'desktop' | 'mobile'
 
 export interface OS {
   shell: Shell
-  open(app: AppId, args?: AppArgs): void
+  /** `source` is where the visitor launched it from, for analytics. */
+  open(app: AppId, source: AppSource, args?: AppArgs): void
 }
 
 export const OSContext = createContext<OS | null>(null)
@@ -32,8 +34,12 @@ export const AppWindowContext = createContext<AppWindow>({ setTitle() {}, close(
 export const useAppWindow = () => useContext(AppWindowContext)
 
 /** Opens a file system node with the app that handles it. */
-export function openNode(os: OS, node: FsNode, path: string) {
-  if (node.kind === 'dir') os.open('files', { path })
-  else if (node.type === 'link') os.open('browser', { url: node.url })
-  else os.open('viewer', { path })
+export function openNode(os: OS, node: FsNode, path: string, source: 'files' | 'terminal') {
+  if (node.kind === 'dir') {
+    os.open('files', source, { path })
+    return
+  }
+  track('file_opened', { path, file_type: node.type, source })
+  if (node.type === 'link') os.open('browser', source, { url: node.url })
+  else os.open('viewer', source, { path })
 }

@@ -1,5 +1,6 @@
 import { Maximize, Moon, Sun, Volume2, Wifi } from 'lucide-react'
 import { useRef } from 'react'
+import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { Logo } from '../../components/Logo.tsx'
 import { useLocale, useT } from '../../i18n/index.ts'
@@ -7,7 +8,7 @@ import { apps, resumeShortcut } from '../../system/apps.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH } from '../../system/fs.ts'
 import { useOS } from '../../system/os.ts'
-import { settings, useSettings } from '../../system/settings.ts'
+import { setLocale, setTheme, useSettings } from '../../system/settings.ts'
 import { useStore } from '../../system/store.ts'
 import { useClock } from '../../system/useClock.ts'
 import { activateWindow, minimizeWindow, windows } from './windows.ts'
@@ -17,9 +18,11 @@ type KeyboardLock = { keyboard?: { lock?(keys: string[]): Promise<void> } }
 async function toggleFullscreen() {
   if (document.fullscreenElement) {
     await document.exitFullscreen()
+    track('fullscreen_toggled', { fullscreen: false })
     return
   }
   await document.documentElement.requestFullscreen()
+  track('fullscreen_toggled', { fullscreen: true })
   // In full screen, Chromium can hand us the keys the host OS normally keeps,
   // so Alt+Tab and Super work like on a real desktop.
   await (navigator as Navigator & KeyboardLock).keyboard?.lock?.([
@@ -58,7 +61,7 @@ export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleM
 
       <button
         className="panel-button"
-        onClick={() => os.open('viewer', { path: RESUME_PATH })}
+        onClick={() => os.open('viewer', 'panel', { path: RESUME_PATH })}
         title={t('app.resume')}
         aria-label={t('app.resume')}
       >
@@ -78,7 +81,12 @@ export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleM
               onMouseDown={() => {
                 pressedFocused.current = focused
               }}
-              onClick={() => (pressedFocused.current ? minimizeWindow(win.id) : activateWindow(win.id))}
+              onClick={() => {
+                const action = pressedFocused.current ? 'minimize' : 'activate'
+                track('taskbar_item_clicked', { app: win.appId, action })
+                if (action === 'minimize') minimizeWindow(win.id)
+                else activateWindow(win.id)
+              }}
               title={title}
             >
               <AppIcon app={apps[win.appId]} size={24} />
@@ -91,7 +99,7 @@ export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleM
       <div className="panel-tray">
         <button
           className="panel-button panel-locale"
-          onClick={() => settings.set({ locale: locale === 'pt' ? 'en' : 'pt' })}
+          onClick={() => setLocale(locale === 'pt' ? 'en' : 'pt', 'panel')}
           title={t('panel.language')}
           aria-label={t('panel.language')}
         >
@@ -99,7 +107,7 @@ export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleM
         </button>
         <button
           className="panel-button"
-          onClick={() => settings.set({ theme: theme === 'dark' ? 'light' : 'dark' })}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark', 'panel')}
           title={t('panel.theme')}
           aria-label={t('panel.theme')}
         >

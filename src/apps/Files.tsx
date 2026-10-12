@@ -1,9 +1,12 @@
 import { ArrowLeft, ArrowUp, ChevronRight, FileText, FileUser, Folder, Globe, House, Trash } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { type AnalyticsEvents, track } from '../analytics.ts'
 import { useT } from '../i18n/index.ts'
 import type { AppProps } from '../system/apps.ts'
-import { type FsNode, TRASH_PATH, chainPath, childPath, useFs, visibleChildren, walk } from '../system/fs.ts'
+import { type FsNode, PROJECTS_PATH, TRASH_PATH, chainPath, childPath, useFs, visibleChildren, walk } from '../system/fs.ts'
 import { openNode, useAppWindow, useOS } from '../system/os.ts'
+
+type FolderMethod = AnalyticsEvents['folder_opened']['method']
 
 function NodeIcon({ node, size }: { node: FsNode; size: number }) {
   if (node.kind === 'dir') return <Folder className="file-icon is-folder" size={size} strokeWidth={1.5} />
@@ -34,7 +37,8 @@ export default function Files({ args }: AppProps) {
     appWindow.setTitle(current.name)
   }, [appWindow, current.name])
 
-  const go = (to: string) => {
+  const go = (to: string, method: FolderMethod) => {
+    track('folder_opened', { path: to, method })
     setHistory((list) => [...list, here])
     setPath(to)
     setSelected(null)
@@ -43,6 +47,7 @@ export default function Files({ args }: AppProps) {
   const goBack = () => {
     const previous = history.at(-1)
     if (previous === undefined) return
+    track('folder_opened', { path: previous, method: 'back' })
     setHistory((list) => list.slice(0, -1))
     setPath(previous)
     setSelected(null)
@@ -50,8 +55,15 @@ export default function Files({ args }: AppProps) {
 
   const open = (node: FsNode) => {
     const target = childPath(here, node)
-    if (node.kind === 'dir') go(target)
-    else openNode(os, node, target)
+    if (target.startsWith(`${PROJECTS_PATH}/`)) {
+      track('project_resource_opened', {
+        project: target.split('/')[2],
+        resource: node.id,
+        resource_type: node.kind === 'dir' ? 'project' : node.type,
+      })
+    }
+    if (node.kind === 'dir') go(target, 'item')
+    else openNode(os, node, target, 'files')
   }
 
   const places = [
@@ -70,7 +82,7 @@ export default function Files({ args }: AppProps) {
         </button>
         <button
           className="icon-button"
-          onClick={() => go(chainPath(chain.slice(0, -1)))}
+          onClick={() => go(chainPath(chain.slice(0, -1)), 'up')}
           disabled={chain.length === 1}
           aria-label={t('files.up')}
         >
@@ -80,7 +92,10 @@ export default function Files({ args }: AppProps) {
           {chain.map((node, index) => (
             <span key={index}>
               {index > 0 && <ChevronRight size={14} />}
-              <button onClick={() => go(chainPath(chain.slice(0, index + 1)))} disabled={index === chain.length - 1}>
+              <button
+                onClick={() => go(chainPath(chain.slice(0, index + 1)), 'breadcrumb')}
+                disabled={index === chain.length - 1}
+              >
                 {node.name}
               </button>
             </span>
@@ -95,7 +110,7 @@ export default function Files({ args }: AppProps) {
               <button
                 key={place.path}
                 className={place.path === here ? 'is-active' : ''}
-                onClick={() => place.path !== here && go(place.path)}
+                onClick={() => place.path !== here && go(place.path, 'sidebar')}
               >
                 <place.icon size={16} />
                 {place.name}

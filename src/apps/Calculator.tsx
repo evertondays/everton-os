@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useReducer } from 'react'
+import { track } from '../analytics.ts'
 import { useLocale } from '../i18n/index.ts'
 import { useOS } from '../system/os.ts'
 
@@ -20,6 +21,8 @@ type Action =
   | { type: 'equals' | 'clear' | 'negate' | 'percent' | 'backspace' }
 
 const initial: State = { display: '0', stored: null, operator: null, fresh: true }
+
+const OPERATOR_NAMES = { '+': 'add', '-': 'subtract', '×': 'multiply', '÷': 'divide' } as const
 
 function compute(a: number, b: number, operator: Operator): number {
   if (operator === '+') return a + b
@@ -104,11 +107,19 @@ export default function CalculatorApp() {
   const locale = useLocale()
   const [state, dispatch] = useReducer(reducer, initial)
 
+  // Only finished calculations are reported, never each key.
+  const press = (action: Action) => {
+    if (action.type === 'equals' && state.stored !== null && state.operator) {
+      track('calculator_calculation_performed', { operator: OPERATOR_NAMES[state.operator] })
+    }
+    dispatch(action)
+  }
+
   const onKeyDown = (event: KeyboardEvent) => {
     const action = /^\d$/.test(event.key) ? ({ type: 'digit', digit: event.key } as const) : KEYBOARD[event.key]
     if (!action) return
     event.preventDefault()
-    dispatch(action)
+    press(action)
   }
 
   const display = locale === 'pt' ? state.display.replace('.', ',') : state.display
@@ -132,7 +143,7 @@ export default function CalculatorApp() {
           <button
             key={key.label}
             className={`calculator-key${key.kind ? ` is-${key.kind}` : ''}${key.wide ? ' is-wide' : ''}`}
-            onClick={() => dispatch(key.action)}
+            onClick={() => press(key.action)}
           >
             {key.label === ',' && locale === 'en' ? '.' : key.label}
           </button>

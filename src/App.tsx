@@ -1,4 +1,5 @@
-import { Suspense, lazy, useSyncExternalStore } from 'react'
+import { Suspense, lazy, useEffect, useSyncExternalStore } from 'react'
+import { setContext } from './analytics.ts'
 
 // Each shell is its own chunk: a phone never downloads the window manager,
 // and a computer never downloads the phone interface.
@@ -16,5 +17,10 @@ function subscribe(listener: () => void) {
 
 export default function App() {
   const mobile = useSyncExternalStore(subscribe, () => mobileQuery.matches)
+
+  useEffect(() => {
+    setContext({ shell: mobile ? 'mobile' : 'desktop' })
+  }, [mobile])
+
   return <Suspense fallback={null}>{mobile ? <MobileShell /> : <DesktopShell />}</Suspense>
 }

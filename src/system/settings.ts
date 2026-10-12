@@ -1,3 +1,4 @@
+import { type SettingsSource, setContext, track } from '../analytics.ts'
 import type { Locale } from '../data/localize.ts'
 import { createStore, useStore } from './store.ts'
 
@@ -31,9 +32,10 @@ function load(): Settings {
   return settings
 }
 
-function apply({ theme, locale }: Settings) {
+function apply({ theme, locale, wallpaper }: Settings) {
   document.documentElement.dataset.theme = theme
   document.documentElement.lang = locale === 'pt' ? 'pt-BR' : 'en'
+  setContext({ theme, language: locale, wallpaper })
 }
 
 export const settings = createStore<Settings>(load())
@@ -51,4 +53,24 @@ settings.subscribe(() => {
 
 export function useSettings<S>(selector: (settings: Settings) => S): S {
   return useStore(settings, selector)
+}
+
+// Preferences the visitor changes by hand. `source` is where from, for analytics.
+
+export function setTheme(theme: Theme, source: SettingsSource) {
+  if (settings.get().theme === theme) return
+  settings.set({ theme })
+  track('theme_changed', { theme, source })
+}
+
+export function setLocale(locale: Locale, source: SettingsSource) {
+  if (settings.get().locale === locale) return
+  settings.set({ locale })
+  track('language_changed', { language: locale, source })
+}
+
+export function setWallpaper(wallpaper: string, source: SettingsSource) {
+  if (settings.get().wallpaper === wallpaper) return
+  settings.set({ wallpaper })
+  track('wallpaper_changed', { wallpaper, source })
 }

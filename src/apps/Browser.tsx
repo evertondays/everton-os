@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, ExternalLink, Globe, House, Plus, RotateCw, X } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { track } from '../analytics.ts'
 import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
 import type { AppProps } from '../system/apps.ts'
@@ -105,13 +106,27 @@ export default function Browser({ args }: AppProps) {
   const navigate = (target: string) =>
     patch((tab) => ({ history: [...tab.history.slice(0, tab.index + 1), toUrl(target)], index: tab.index + 1 }))
 
+  /** A navigation the visitor asked for. Only the host is reported: anything can be typed in the address bar. */
+  const visit = (target: string, method: 'address_bar' | 'bookmark' | 'home_tile') => {
+    const address = toUrl(target)
+    if (address !== HOME) track('browser_navigated', { host: hostname(address), method, framed: canFrame(address) })
+    navigate(target)
+  }
+
+  const toolbar = (action: 'back' | 'forward' | 'reload' | 'home', change: (tab: Tab) => Partial<Tab>) => {
+    track('browser_toolbar_used', { action })
+    patch(change)
+  }
+
   const addTab = () => {
     const id = nextId.current++
+    track('browser_tab_opened', { tabs: tabs.length + 1 })
     setTabs((list) => [...list, { id, history: [HOME], index: 0, reloads: 0 }])
     setActiveId(id)
   }
 
   const closeTab = (id: number) => {
+    track('browser_tab_closed', { tabs: tabs.length - 1 })
     if (tabs.length === 1) {
       appWindow.close()
       return
@@ -143,7 +158,7 @@ export default function Browser({ args }: AppProps) {
       <div className="toolbar">
         <button
           className="icon-button"
-          onClick={() => patch((tab) => ({ index: tab.index - 1 }))}
+          onClick={() => toolbar('back', (tab) => ({ index: tab.index - 1 }))}
           disabled={active.index === 0}
           aria-label={t('common.back')}
         >
@@ -151,7 +166,7 @@ export default function Browser({ args }: AppProps) {
         </button>
         <button
           className="icon-button"
-          onClick={() => patch((tab) => ({ index: tab.index + 1 }))}
+          onClick={() => toolbar('forward', (tab) => ({ index: tab.index + 1 }))}
           disabled={active.index === active.history.length - 1}
           aria-label={t('browser.forward')}
         >
@@ -159,19 +174,38 @@ export default function Browser({ args }: AppProps) {
         </button>
         <button
           className="icon-button"
-          onClick={() => patch((tab) => ({ reloads: tab.reloads + 1 }))}
+          onClick={() => toolbar('reload', (tab) => ({ reloads: tab.reloads + 1 }))}
           aria-label={t('browser.reload')}
         >
           <RotateCw size={15} />
         </button>
-        <button className="icon-button" onClick={() => navigate(HOME)} aria-label={t('browser.home')}>
+        <button
+          className="icon-button"
+          onClick={() => {
+            track('browser_toolbar_used', { action: 'home' })
+            navigate(HOME)
+          }}
+          aria-label={t('browser.home')}
+        >
           <House size={16} />
         </button>
         {/* Keyed by page, so the field resets to the address whenever the tab navigates. */}
-        <AddressBar key={`${active.id}:${active.index}`} url={url === HOME ? '' : url} onSubmit={navigate} />
+        <AddressBar
+          key={`${active.id}:${active.index}`}
+          url={url === HOME ? '' : url}
+          onSubmit={(address) => visit(address, 'address_bar')}
+        />
 
         {url !== HOME && (
-          <a className="icon-button" href={url} target="_blank" rel="noopener noreferrer" aria-label={t('browser.external')} title={t('browser.external')}>
+          <a
+            className="icon-button"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('browser.external')}
+            title={t('browser.external')}
+            onClick={() => track('browser_external_link_opened', { host: hostname(url), source: 'toolbar' })}
+          >
             <ExternalLink size={16} />
           </a>
         )}
@@ -179,7 +213,7 @@ export default function Browser({ args }: AppProps) {
 
       <div className="browser-bookmarks">
         {sites.map((site) => (
-          <button key={site.url} onClick={() => navigate(site.url)}>
+          <button key={site.url} onClick={() => visit(site.url, 'bookmark')}>
             {site.name}
           </button>
         ))}
@@ -196,7 +230,7 @@ export default function Browser({ args }: AppProps) {
                 <p>{t('browser.homeText')}</p>
                 <div className="browser-tiles">
                   {sites.map((site) => (
-                    <button key={site.url} onClick={() => navigate(site.url)}>
+                    <button key={site.url} onClick={() => visit(site.url, 'home_tile')}>
                       <Globe size={22} />
                       <strong>{site.name}</strong>
                       <span>{hostname(site.url)}</span>
@@ -216,7 +250,13 @@ export default function Browser({ args }: AppProps) {
                 <Globe size={40} />
                 <h1>{t('browser.blockedTitle', { site: hostname(target) })}</h1>
                 <p>{t('browser.blockedText')}</p>
-                <a className="button is-primary" href={target} target="_blank" rel="noopener noreferrer">
+                <a
+                  className="button is-primary"
+                  href={target}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => track('browser_external_link_opened', { host: hostname(target), source: 'blocked_page' })}
+                >
                   <ExternalLink size={15} />
                   {t('browser.external')}
                 </a>

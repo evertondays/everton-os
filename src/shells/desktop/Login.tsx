@@ -1,4 +1,6 @@
+import { track } from '../../analytics.ts'
 import { Avatar } from '../../components/Avatar.tsx'
+import { posthogLog } from '../../posthog-logs.ts'
 import { useResume } from '../../data/resume.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
@@ -14,6 +16,12 @@ export function Login({ onEnter }: { onEnter(): void }) {
   const wallpaper = useWallpaper()
   const { basics } = useResume()
 
+  const enterPortfolio = () => {
+    track('portfolio_entered', { entry_point: 'desktop_login' })
+    posthogLog.portfolioEntered('desktop_login')
+    onEnter()
+  }
+
   return (
     <div className="login" style={{ backgroundImage: wallpaper.css }}>
       <div className="login-shade">
@@ -22,14 +30,18 @@ export function Login({ onEnter }: { onEnter(): void }) {
           <span>{formatDate(now, locale)}</span>
         </time>
 
-        <button className="login-user" autoFocus onClick={onEnter}>
+        <button className="login-user" autoFocus onClick={enterPortfolio}>
           <Avatar size={112} />
           <span className="login-name">{basics.name}</span>
           <span className="login-label">{basics.label}</span>
           <span className="login-enter">{t('login.enter')}</span>
         </button>
 
-        <a className="login-classic" href={classicUrl(locale)}>
+        <a
+          className="login-classic"
+          href={classicUrl(locale)}
+          onClick={() => track('classic_version_opened', { source: 'login' })}
+        >
           {t('login.classic')}
         </a>
       </div>

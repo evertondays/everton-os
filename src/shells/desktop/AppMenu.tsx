@@ -1,5 +1,6 @@
 import { Power, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { Avatar } from '../../components/Avatar.tsx'
 import { useResume } from '../../data/resume.ts'
@@ -19,8 +20,9 @@ export function AppMenu({ onClose, onLogout }: { onClose(): void; onLogout(): vo
   const results = appList.filter((app) => t(app.name).toLowerCase().includes(query.trim().toLowerCase()))
 
   const launch = (app: AppDef) => {
+    if (query.trim()) track('app_menu_searched', { query: query.trim(), results: results.length, selected_app: app.id })
     onClose()
-    os.open(app.id)
+    os.open(app.id, 'app_menu')
   }
 
   useEffect(() => {
@@ -71,7 +73,9 @@ export function AppMenu({ onClose, onLogout }: { onClose(): void; onLogout(): vo
       <div className="menu-footer">
         <Avatar size={30} />
         <span className="menu-user">{basics.name}</span>
-        <a href={classicUrl(locale)}>{t('common.classic')}</a>
+        <a href={classicUrl(locale)} onClick={() => track('classic_version_opened', { source: 'app_menu' })}>
+          {t('common.classic')}
+        </a>
         <button onClick={onLogout} title={t('menu.logout')} aria-label={t('menu.logout')}>
           <Power size={16} />
         </button>

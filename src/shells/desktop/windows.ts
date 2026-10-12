@@ -1,3 +1,4 @@
+import { type AppSource, track } from '../../analytics.ts'
 import { type AppArgs, type AppId, apps } from '../../system/apps.ts'
 import { createStore } from '../../system/store.ts'
 import type { WindowHandle } from './useWindow.ts'
@@ -35,12 +36,13 @@ const update = (id: string, patch: Partial<Win>) =>
     windows: state.windows.map((win) => (win.id === id ? { ...win, ...patch } : win)),
   }))
 
-export function openWindow(appId: AppId, args?: AppArgs) {
+export function openWindow(appId: AppId, source: AppSource, args?: AppArgs) {
   const existing = windows
     .get()
     .windows.find(
       (win) => win.appId === appId && (apps[appId].single || (args?.path !== undefined && win.args?.path === args.path)),
     )
+  track('app_opened', { app: appId, source, ...args, already_open: existing !== undefined })
   if (existing) {
     activateWindow(existing.id)
     return
@@ -52,6 +54,8 @@ export function openWindow(appId: AppId, args?: AppArgs) {
 }
 
 export function closeWindow(id: string) {
+  const win = windows.get().windows.find((other) => other.id === id)
+  if (win) track('app_closed', { app: win.appId, method: 'window' })
   windows.set((state) => ({
     windows: state.windows.filter((win) => win.id !== id),
     recent: state.recent.filter((other) => other !== id),
@@ -106,5 +110,10 @@ export function windowBlurred(id: string) {
 }
 
 export function windowMinimized(id: string, minimized: boolean) {
+  const win = windows.get().windows.find((other) => other.id === id)
+  // WinBox also reports a restore when a maximized window shrinks back.
+  if (win && win.minimized !== minimized) {
+    track(minimized ? 'window_minimized' : 'window_restored', { app: win.appId })
+  }
   update(id, { minimized })
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { useT } from '../../i18n/index.ts'
 import { apps } from '../../system/apps.ts'
@@ -32,9 +33,12 @@ export function Switcher() {
     }
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key !== 'Alt' || current.current === null) return
-      const win = windowsByRecency()[current.current]
+      const list = windowsByRecency()
+      const win = list[current.current]
       select(null)
-      if (win) activateWindow(win.id)
+      if (!win) return
+      track('window_switcher_used', { app: win.appId, open_windows: list.length })
+      activateWindow(win.id)
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)

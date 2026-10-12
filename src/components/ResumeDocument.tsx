@@ -1,3 +1,4 @@
+import { track } from '../analytics.ts'
 import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
 import { formatMonth, formatPeriod } from '../system/format.ts'
@@ -18,9 +19,17 @@ export function ResumeDocument() {
           <span>
             {basics.location.city}, {basics.location.region}
           </span>
-          <a href={`mailto:${basics.email}`}>{basics.email}</a>
+          <a href={`mailto:${basics.email}`} onClick={() => track('contact_email_clicked', { source: 'resume' })}>
+            {basics.email}
+          </a>
           {basics.profiles.map((profile) => (
-            <a key={profile.network} href={profile.url} target="_blank" rel="noopener noreferrer">
+            <a
+              key={profile.network}
+              href={profile.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track('contact_profile_clicked', { network: profile.network.toLowerCase(), source: 'resume' })}
+            >
               {profile.network}: {profile.username}
             </a>
           ))}

@@ -1,5 +1,6 @@
 import { Download, Printer } from 'lucide-react'
 import { useEffect } from 'react'
+import { track, useTrackView } from '../analytics.ts'
 import { Markdown } from '../components/Markdown.tsx'
 import { ResumeDocument } from '../components/ResumeDocument.tsx'
 import { useResume } from '../data/resume.ts'
@@ -47,20 +48,25 @@ function FileContent({ file }: { file: FsFile }) {
   }
   if (file.type === 'resume') {
     // Phone browsers don't render PDFs inline, so there the page is always drawn from the data.
-    if (meta.pdf && shell === 'desktop') {
-      return <iframe className="viewer-pdf" src={assetUrl(meta.pdf)} title={file.name} />
-    }
-    return (
-      <div className="viewer-page">
-        <ResumeDocument />
-      </div>
-    )
+    const pdf = meta.pdf && shell === 'desktop' ? assetUrl(meta.pdf) : null
+    return <ResumeContent name={file.name} pdf={pdf} />
   }
   return (
     <div className="viewer-page">
       <div className="paper">
         <Markdown source={file.content ?? ''} />
       </div>
+    </div>
+  )
+}
+
+function ResumeContent({ name, pdf }: { name: string; pdf: string | null }) {
+  useTrackView('resume_viewed', { format: pdf ? 'pdf' : 'page' })
+
+  if (pdf) return <iframe className="viewer-pdf" src={pdf} title={name} />
+  return (
+    <div className="viewer-page">
+      <ResumeDocument />
     </div>
   )
 }
@@ -73,7 +79,13 @@ function DownloadButton({ file }: { file: FsFile }) {
   if (file.type === 'resume' && !meta.pdf) {
     // No PDF file configured: the classic page is print-ready and saves as PDF.
     return (
-      <a className="button" href={`${classicUrl(locale)}?print`} target="_blank" rel="noopener">
+      <a
+        className="button"
+        href={`${classicUrl(locale)}?print`}
+        target="_blank"
+        rel="noopener"
+        onClick={() => track('file_downloaded', { file: file.id, file_type: file.type, export_method: 'print' })}
+      >
         <Printer size={15} />
         {t('viewer.savePdf')}
       </a>
@@ -88,7 +100,12 @@ function DownloadButton({ file }: { file: FsFile }) {
         : `data:text/markdown;charset=utf-8,${encodeURIComponent(file.content ?? '')}`
 
   return (
-    <a className="button" href={href} download={file.name}>
+    <a
+      className="button"
+      href={href}
+      download={file.name}
+      onClick={() => track('file_downloaded', { file: file.id, file_type: file.type, export_method: 'download' })}
+    >
       <Download size={15} />
       {t('common.download')}
     </a>

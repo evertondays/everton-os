@@ -22,17 +22,17 @@ export function DesktopIcons() {
       id: 'resume',
       label: t('fs.resume'),
       icon: resumeShortcut,
-      open: () => os.open('viewer', { path: RESUME_PATH }),
+      open: () => os.open('viewer', 'desktop_icon', { path: RESUME_PATH }),
     },
     {
       id: 'projects',
       label: t('fs.projects'),
       icon: apps.files,
-      open: () => os.open('files', { path: PROJECTS_PATH }),
+      open: () => os.open('files', 'desktop_icon', { path: PROJECTS_PATH }),
     },
-    { id: 'contact', label: t('app.contact'), icon: apps.contact, open: () => os.open('contact') },
-    { id: 'terminal', label: t('app.terminal'), icon: apps.terminal, open: () => os.open('terminal') },
-    { id: 'trash', label: t('app.trash'), icon: apps.trash, open: () => os.open('trash') },
+    { id: 'contact', label: t('app.contact'), icon: apps.contact, open: () => os.open('contact', 'desktop_icon') },
+    { id: 'terminal', label: t('app.terminal'), icon: apps.terminal, open: () => os.open('terminal', 'desktop_icon') },
+    { id: 'trash', label: t('app.trash'), icon: apps.trash, open: () => os.open('trash', 'desktop_icon') },
   ]
 
   return (

@@ -1,11 +1,12 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { track } from '../analytics.ts'
 import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
 import { appList } from '../system/apps.ts'
 import { resumeText } from '../system/content.ts'
 import { type FsNode, chainPath, useFs, visibleChildren, walk } from '../system/fs.ts'
 import { openNode, useAppWindow, useOS } from '../system/os.ts'
-import { settings } from '../system/settings.ts'
+import { setLocale, setTheme } from '../system/settings.ts'
 
 interface Entry {
   id: number
@@ -99,30 +100,32 @@ export default function TerminalApp() {
       if (!target) return t('terminal.usage', { usage: 'open <app|file>' })
       const app = appList.find((item) => item.id === target || plain(t(item.name)) === plain(target))
       if (app) {
-        os.open(app.id)
+        os.open(app.id, 'terminal')
         return
       }
       const chain = walk(fs, target, cwd)
       if (!chain) return t('terminal.noSuchFile', { name: target })
-      openNode(os, chain.at(-1)!, chainPath(chain))
+      openNode(os, chain.at(-1)!, chainPath(chain), 'terminal')
     },
     skills: () => resume.skills.map((group) => `${group.name.padEnd(14)} ${group.keywords.join(', ')}`).join('\n'),
-    contato: () =>
-      [
+    contato: () => {
+      track('contact_details_viewed', { source: 'terminal' })
+      return [
         `E-mail    ${resume.basics.email}`,
         ...resume.basics.profiles.map((profile) => `${profile.network.padEnd(9)} ${profile.url}`),
-      ].join('\n'),
-    neofetch: () => os.open('system'),
+      ].join('\n')
+    },
+    neofetch: () => os.open('system', 'terminal'),
     date: () => new Date().toLocaleString(locale === 'pt' ? 'pt-BR' : 'en-US'),
     echo: (args) => args.join(' '),
     history: () => typed.current.map((line, index) => `${String(index + 1).padStart(3)}  ${line}`).join('\n'),
     lang: ([value]) => {
       if (value !== 'pt' && value !== 'en') return t('terminal.usage', { usage: 'lang <pt|en>' })
-      settings.set({ locale: value })
+      setLocale(value, 'terminal')
     },
     theme: ([value]) => {
       if (value !== 'light' && value !== 'dark') return t('terminal.usage', { usage: 'theme <light|dark>' })
-      settings.set({ theme: value })
+      setTheme(value, 'terminal')
     },
     clear: () => setEntries([]),
     exit: () => appWindow.close(),
@@ -137,6 +140,8 @@ export default function TerminalApp() {
     if (name) {
       typed.current.push(line.trim())
       const command = commands[name]
+      // Only the command's name: its arguments are whatever the visitor typed.
+      track('terminal_command_run', { command: name.slice(0, 32), known: command !== undefined })
       const output = command ? command(args) : t('terminal.notFound', { command: name })
       // `clear` has already emptied the screen; don't add its own line back.
       if (name === 'clear') return

@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { track } from '../analytics.ts'
 import { useT } from '../i18n/index.ts'
 import { type FsDir, useFs, visibleChildren } from '../system/fs.ts'
 
@@ -29,7 +30,10 @@ export default function Gallery() {
 
   useEffect(() => {
     if (open === null) return
-    const step = (delta: number) => setOpen((index) => (index === null ? null : (index + delta + photos.length) % photos.length))
+    const step = (delta: number) => {
+      track('gallery_photo_navigated', { direction: delta < 0 ? 'previous' : 'next', method: 'keyboard' })
+      setOpen((index) => (index === null ? null : (index + delta + photos.length) % photos.length))
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(null)
       if (event.key === 'ArrowLeft') step(-1)
@@ -42,14 +46,23 @@ export default function Gallery() {
   if (photos.length === 0) return <div className="app app-empty">{t('gallery.empty')}</div>
 
   const current = open === null ? null : photos[open]
-  const step = (delta: number) => setOpen(((open ?? 0) + delta + photos.length) % photos.length)
+  const step = (delta: number) => {
+    track('gallery_photo_navigated', { direction: delta < 0 ? 'previous' : 'next', method: 'button' })
+    setOpen(((open ?? 0) + delta + photos.length) % photos.length)
+  }
 
   return (
     <div className="app gallery">
       <ul className="gallery-grid">
         {photos.map((photo, index) => (
           <li key={photo.key}>
-            <button onClick={() => setOpen(index)}>
+            <button
+              onClick={() => {
+                // The key is built from ids, so it reads the same in every language.
+                track('gallery_photo_opened', { photo: photo.key, album: photo.key.split('/').at(-2) || 'home' })
+                setOpen(index)
+              }}
+            >
               <img src={photo.src} alt={photo.caption} loading="lazy" />
               <span>
                 {photo.caption}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { track } from '../../analytics.ts'
 import { type OS, OSContext } from '../../system/os.ts'
 import { settings } from '../../system/settings.ts'
 import { useStore } from '../../system/store.ts'
@@ -42,6 +43,7 @@ export default function DesktopShell() {
   return (
     <Desktop
       onLogout={() => {
+        track('session_logged_out', { open_windows: windows.get().windows.length })
         sessionStorage.removeItem(SESSION_KEY)
         setPhase('login')
       }}
@@ -54,16 +56,21 @@ function Desktop({ onLogout }: { onLogout(): void }) {
   const list = useStore(windows, (s) => s.windows)
   const [menuOpen, setMenuOpen] = useState(false)
   const firstVisit = useRef(!settings.get().visited)
+  const menuTrigger = useRef<'panel_button' | 'super_key'>('panel_button')
 
   const os = useMemo<OS>(() => ({ shell: 'desktop', open: openWindow }), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
 
   useEffect(() => {
     // A first-time visitor is greeted with the About me app.
-    if (firstVisit.current) openWindow('about')
+    if (firstVisit.current) openWindow('about', 'first_visit')
     settings.set({ visited: true })
     return closeAllWindows
   }, [])
+
+  useEffect(() => {
+    if (menuOpen) track('app_menu_opened', { trigger: menuTrigger.current })
+  }, [menuOpen])
 
   useEffect(() => {
     // Super toggles the menu when pressed and released on its own.
@@ -72,7 +79,10 @@ function Desktop({ onLogout }: { onLogout(): void }) {
       alone = event.key === 'Meta'
     }
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === 'Meta' && alone) setMenuOpen((open) => !open)
+      if (event.key === 'Meta' && alone) {
+        menuTrigger.current = 'super_key'
+        setMenuOpen((open) => !open)
+      }
       alone = false
     }
     window.addEventListener('keydown', onKeyDown)
@@ -91,7 +101,13 @@ function Desktop({ onLogout }: { onLogout(): void }) {
           <Window key={win.id} win={win} />
         ))}
         {menuOpen && <AppMenu onClose={closeMenu} onLogout={onLogout} />}
-        <Panel menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((open) => !open)} />
+        <Panel
+          menuOpen={menuOpen}
+          onToggleMenu={() => {
+            menuTrigger.current = 'panel_button'
+            setMenuOpen((open) => !open)
+          }}
+        />
         <Switcher />
       </div>
     </OSContext.Provider>

@@ -1,4 +1,5 @@
 import { ExternalLink, FileUser, Folder, Mail, MapPin } from 'lucide-react'
+import { track } from '../analytics.ts'
 import { Avatar } from '../components/Avatar.tsx'
 import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
@@ -24,15 +25,33 @@ export default function About() {
       <p className="about-summary">{basics.intro ?? basics.summary}</p>
 
       <div className="about-actions">
-        <button className="button is-primary" onClick={() => os.open('viewer', { path: RESUME_PATH })}>
+        <button
+          className="button is-primary"
+          onClick={() => {
+            track('portfolio_cta_selected', { destination: 'resume' })
+            os.open('viewer', 'about', { path: RESUME_PATH })
+          }}
+        >
           <FileUser size={16} />
           {t('about.resume')}
         </button>
-        <button className="button" onClick={() => os.open('files', { path: PROJECTS_PATH })}>
+        <button
+          className="button"
+          onClick={() => {
+            track('portfolio_cta_selected', { destination: 'projects' })
+            os.open('files', 'about', { path: PROJECTS_PATH })
+          }}
+        >
           <Folder size={16} />
           {t('fs.projects')}
         </button>
-        <button className="button" onClick={() => os.open('contact')}>
+        <button
+          className="button"
+          onClick={() => {
+            track('portfolio_cta_selected', { destination: 'contact' })
+            os.open('contact', 'about')
+          }}
+        >
           <Mail size={16} />
           {t('app.contact')}
         </button>
@@ -41,7 +60,12 @@ export default function About() {
       <ul className="about-links">
         {basics.profiles.map((profile) => (
           <li key={profile.network}>
-            <a href={profile.url} target="_blank" rel="noopener noreferrer">
+            <a
+              href={profile.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track('contact_profile_clicked', { network: profile.network.toLowerCase(), source: 'about' })}
+            >
               {profile.network}
               <ExternalLink size={13} />
             </a>
@@ -50,7 +74,10 @@ export default function About() {
       </ul>
 
       <p className="about-classic">
-        {t('about.hurry')} <a href={classicUrl(locale)}>{t('common.classic')}</a>
+        {t('about.hurry')}{' '}
+        <a href={classicUrl(locale)} onClick={() => track('classic_version_opened', { source: 'about' })}>
+          {t('common.classic')}
+        </a>
       </p>
     </div>
   )

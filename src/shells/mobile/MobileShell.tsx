@@ -1,6 +1,8 @@
 import { BatteryFull, ChevronLeft, Lock, Signal, Wifi } from 'lucide-react'
-import { type PointerEvent, Suspense, useCallback, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type AppSource, track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
+import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
 import { type AppArgs, type AppDef, type AppId, appList, apps, resumeShortcut } from '../../system/apps.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
@@ -36,16 +38,28 @@ export default function MobileShell() {
   const sequence = useRef(0)
   const firstVisit = useRef(!settings.get().visited)
 
-  const open = useCallback((appId: AppId, args?: AppArgs) => {
+  // The callbacks below need the app on top without being rebuilt on every change.
+  const top = useRef<Screen | undefined>(undefined)
+
+  useEffect(() => {
+    top.current = screens.at(-1)
+  })
+
+  const open = useCallback((appId: AppId, source: AppSource, args?: AppArgs) => {
+    track('app_opened', { app: appId, source, ...args })
     const screen: Screen = { key: ++sequence.current, appId, args, origin: lastTap.current }
     setScreens((list) => [...list, screen])
   }, [])
 
   const os = useMemo<OS>(() => ({ shell: 'mobile', open }), [open])
 
-  const back = useCallback(() => setScreens((list) => list.slice(0, -1)), [])
+  const back = useCallback(() => {
+    if (top.current) track('app_closed', { app: top.current.appId, method: 'back' })
+    setScreens((list) => list.slice(0, -1))
+  }, [])
 
   const goHome = useCallback(() => {
+    if (top.current) track('app_closed', { app: top.current.appId, method: 'home' })
     setClosing(true)
     window.setTimeout(() => {
       setScreens([])
@@ -58,7 +72,7 @@ export default function MobileShell() {
     // A first-time visitor is greeted with the About me app.
     if (firstVisit.current) {
       firstVisit.current = false
-      open('about')
+      open('about', 'first_visit')
     }
     settings.set({ visited: true })
   }, [open])
@@ -116,6 +130,9 @@ function LockScreen({ onUnlock }: { onUnlock(): void }) {
   const [leaving, setLeaving] = useState(false)
 
   const leave = () => {
+    if (leaving) return
+    track('portfolio_entered', { entry_point: 'mobile_lock_screen' })
+    posthogLog.portfolioEntered('mobile_lock_screen')
     setLeaving(true)
     window.setTimeout(onUnlock, 260)
   }
@@ -177,11 +194,11 @@ function HomeScreen() {
   const os = useOS()
   const [page, setPage] = useState(0)
 
-  const appIcon = (app: AppDef): HomeIcon => ({
+  const appIcon = (app: AppDef, source: AppSource): HomeIcon => ({
     id: app.id,
     label: t(app.name),
     icon: app,
-    open: () => os.open(app.id),
+    open: () => os.open(app.id, source),
   })
 
   const icons: HomeIcon[] = [
@@ -189,10 +206,12 @@ function HomeScreen() {
       id: 'resume',
       label: t(resumeShortcut.name),
       icon: resumeShortcut,
-      open: () => os.open('viewer', { path: RESUME_PATH }),
+      open: () => os.open('viewer', 'home_screen', { path: RESUME_PATH }),
     },
     // The résumé shortcut stands in for the Viewer; dock apps live in the dock.
-    ...appList.filter((app) => app.id !== 'viewer' && !DOCK.includes(app.id)).map(appIcon),
+    ...appList
+      .filter((app) => app.id !== 'viewer' && !DOCK.includes(app.id))
+      .map((app) => appIcon(app, 'home_screen')),
   ]
 
   const pages: HomeIcon[][] = []
@@ -231,7 +250,7 @@ function HomeScreen() {
         </div>
       )}
 
-      <nav className="ios-dock">{DOCK.map((id) => button(appIcon(apps[id]), false))}</nav>
+      <nav className="ios-dock">{DOCK.map((id) => button(appIcon(apps[id], 'dock'), false))}</nav>
     </div>
   )
 }

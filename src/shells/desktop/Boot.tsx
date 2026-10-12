@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { track } from '../../analytics.ts'
 import { useT } from '../../i18n/index.ts'
 
 const LINE_INTERVAL = 240
@@ -19,11 +20,15 @@ export function Boot({ onDone }: { onDone(): void }) {
   }, [shown, lines.length, onDone])
 
   useEffect(() => {
-    window.addEventListener('keydown', onDone)
-    window.addEventListener('pointerdown', onDone)
+    const skip = (event: Event) => {
+      track('boot_skipped', { method: event.type === 'keydown' ? 'keyboard' : 'pointer' })
+      onDone()
+    }
+    window.addEventListener('keydown', skip)
+    window.addEventListener('pointerdown', skip)
     return () => {
-      window.removeEventListener('keydown', onDone)
-      window.removeEventListener('pointerdown', onDone)
+      window.removeEventListener('keydown', skip)
+      window.removeEventListener('pointerdown', skip)
     }
   }, [onDone])
 
