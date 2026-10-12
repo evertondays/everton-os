@@ -26,8 +26,16 @@ if (!posthogKey || !posthogHost) {
       capture_unhandled_rejections: true,
       capture_console_errors: false,
     },
-    // Tags every event so local development can be told apart from production.
-    loaded: (instance) => instance.register({ environment: import.meta.env.MODE }),
+    loaded: (instance) => {
+      // Tags every event so local development can be told apart from production.
+      instance.register({ environment: import.meta.env.MODE })
+
+      // Opening the site with ?internal marks this browser as the owner's, so its
+      // visits can be filtered out of the metrics. ?internal=0 undoes it.
+      const internal = new URLSearchParams(location.search).get('internal')
+      if (internal === '0') instance.unregister('internal')
+      else if (internal !== null) instance.register({ internal: true })
+    },
   })
 }
 
