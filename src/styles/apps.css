@@ -1222,3 +1222,125 @@
   color: var(--text-dim);
   font-size: 12px;
 }
+
+/* Calendar (the phone's app; the desktop has CalendarFlyout in the panel) */
+
+.calendar-app {
+  padding: 8px 16px 20px;
+  overflow: auto;
+  user-select: none;
+}
+
+.calendar-app-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 14px;
+}
+
+.calendar-app-year {
+  color: var(--danger);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.calendar-app-head h2 {
+  font-size: 30px;
+  line-height: 1.1;
+  text-transform: capitalize;
+}
+
+.calendar-app-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.calendar-app-today {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.calendar-app-today:disabled {
+  color: var(--text-dim);
+  opacity: 1;
+}
+
+.calendar-app-weekdays,
+.calendar-app-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-app-weekdays {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.calendar-app-grid {
+  row-gap: 4px;
+  padding-top: 8px;
+  font-variant-numeric: tabular-nums;
+  touch-action: pan-y;
+}
+
+.calendar-app-day {
+  justify-self: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 18px;
+}
+
+.calendar-app-day.is-today {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.calendar-app-day.is-selected {
+  background: var(--text);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.calendar-app-day.is-today.is-selected {
+  background: var(--danger);
+  color: #fff;
+}
+
+.calendar-app-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.calendar-app-relative {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.calendar-app-detail h3 {
+  font-size: 17px;
+}
+
+.calendar-app-detail h3::first-letter {
+  text-transform: uppercase;
+}
+
+.calendar-app-week {
+  color: var(--text-dim);
+  font-size: 13px;
+}

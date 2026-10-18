@@ -2,7 +2,7 @@ import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 
 import { track } from '../analytics.ts'
 import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
-import { appList } from '../system/apps.ts'
+import { appsFor } from '../system/apps.ts'
 import { resumeText } from '../system/content.ts'
 import { createNode, fsErrorMessage, isInTrash, isUserNode, purgeNodes, touchNode, trashNodes } from '../system/fileOps.ts'
 import { type FsNode, chainPath, getFs, shortcutTarget, splitPath, useFs, visibleChildren, walk } from '../system/fs.ts'
@@ -132,7 +132,7 @@ export default function TerminalApp() {
         os.open('files', 'terminal', { path: cwd })
         return
       }
-      const app = appList.find((item) => item.id === target || plain(t(item.name)) === plain(target))
+      const app = appsFor(os.shell).find((item) => item.id === target || plain(t(item.name)) === plain(target))
       if (app) {
         os.open(app.id, 'terminal')
         return

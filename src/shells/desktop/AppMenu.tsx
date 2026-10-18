@@ -5,7 +5,7 @@ import { AppIcon } from '../../components/AppIcon.tsx'
 import { Avatar } from '../../components/Avatar.tsx'
 import { useResume } from '../../data/resume.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { type AppDef, appList } from '../../system/apps.ts'
+import { type AppDef, appsFor } from '../../system/apps.ts'
 import { classicUrl } from '../../system/media.ts'
 import { useOS } from '../../system/os.ts'
 
@@ -17,7 +17,7 @@ export function AppMenu({ onClose, onLogout }: { onClose(): void; onLogout(): vo
   const [query, setQuery] = useState('')
   const menu = useRef<HTMLDivElement>(null)
 
-  const results = appList.filter((app) => t(app.name).toLowerCase().includes(query.trim().toLowerCase()))
+  const results = appsFor('desktop').filter((app) => t(app.name).toLowerCase().includes(query.trim().toLowerCase()))
 
   const launch = (app: AppDef) => {
     if (query.trim()) track('app_menu_searched', { query: query.trim(), results: results.length, selected_app: app.id })

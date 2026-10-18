@@ -6,6 +6,7 @@ import { useStore } from '../../system/store.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
 import { AppMenu } from './AppMenu.tsx'
 import { Boot } from './Boot.tsx'
+import { CalendarFlyout } from './CalendarFlyout.tsx'
 import { DesktopIcons } from './DesktopIcons.tsx'
 import { Login } from './Login.tsx'
 import { Panel } from './Panel.tsx'
@@ -61,6 +62,9 @@ function Desktop({ onLogout }: { onLogout(): void }) {
 
   const os = useMemo<OS>(() => ({ shell: 'desktop', open: openWindow }), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
+  // The calendar that opens from the clock in the panel.
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const closeCalendar = useCallback(() => setCalendarOpen(false), [])
 
   useEffect(() => {
     // A first-time visitor is greeted with the About me app.
@@ -102,11 +106,17 @@ function Desktop({ onLogout }: { onLogout(): void }) {
           <Window key={win.id} win={win} />
         ))}
         {menuOpen && <AppMenu onClose={closeMenu} onLogout={onLogout} />}
+        {calendarOpen && <CalendarFlyout onClose={closeCalendar} />}
         <Panel
           menuOpen={menuOpen}
           onToggleMenu={() => {
             menuTrigger.current = 'panel_button'
             setMenuOpen((open) => !open)
+          }}
+          calendarOpen={calendarOpen}
+          onToggleCalendar={() => {
+            if (!calendarOpen) track('calendar_opened')
+            setCalendarOpen((open) => !open)
           }}
         />
         <Switcher />

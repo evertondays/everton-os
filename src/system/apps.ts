@@ -1,5 +1,6 @@
 import {
   Calculator,
+  CalendarDays,
   Cpu,
   FileText,
   FileUser,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { type ComponentType, type LazyExoticComponent, lazy } from 'react'
 import type { TKey } from '../i18n/dict.ts'
+import type { Shell } from './os.ts'
 import type { ShortcutId } from './userFs.ts'
 
 export type AppId =
@@ -31,6 +33,7 @@ export type AppId =
   | 'settings'
   | 'trash'
   | 'editor'
+  | 'calendar'
 
 export interface AppArgs {
   /** File system path (Files, Viewer, Editor). */
@@ -56,7 +59,12 @@ export interface AppDef {
   height: number
   /** Only one instance at a time. */
   single?: boolean
+  /** Only offered in this shell (the desktop has the Calendar in the panel's clock instead). */
+  shell?: Shell
 }
+
+/** The apps a shell lists in its menu or home screen, and that the Terminal can open there. */
+export const appsFor = (shell: Shell) => appList.filter((app) => !app.shell || app.shell === shell)
 
 export const apps: Record<AppId, AppDef> = {
   files: {
@@ -174,6 +182,17 @@ export const apps: Record<AppId, AppDef> = {
     width: 680,
     height: 520,
   },
+  calendar: {
+    id: 'calendar',
+    name: 'app.calendar',
+    icon: CalendarDays,
+    tint: ['#ff7aa8', '#e64980'],
+    component: lazy(() => import('../apps/Calendar.tsx')),
+    width: 380,
+    height: 640,
+    single: true,
+    shell: 'mobile',
+  },
 }
 
 /** How the visitor's own files and folders look as desktop icons: a text file is a white page with blue writing. */
@@ -205,6 +224,7 @@ export const appList: AppDef[] = [
   apps.editor,
   apps.terminal,
   apps.gallery,
+  apps.calendar,
   apps.browser,
   apps.contact,
   apps.calculator,

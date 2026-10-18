@@ -55,6 +55,14 @@ export interface AnalyticsEvents {
   snap_assist_used: { app: AppId; side: SnapSide; candidates: number }
   desktop_icons_moved: { icons: number }
 
+  // Calendar (the clock's flyout on the desktop, an app on the phone)
+  calendar_opened: None
+  calendar_navigated: {
+    direction: 'previous' | 'next' | 'today'
+    method: 'button' | 'wheel' | 'swipe'
+    shell: 'desktop' | 'mobile'
+  }
+
   // Contact
   contact_details_viewed: { source: 'contact_app' | 'terminal' }
   contact_email_clicked: { source: ContactSource }
