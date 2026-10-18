@@ -39,11 +39,18 @@ declare module 'winbox/src/js/winbox.js' {
     min: boolean
     max: boolean
     focused: boolean
+    /** Position and size in the normal (not minimized or maximized) state. */
+    x: number
+    y: number
+    width: number
+    height: number
     focus(): this
     blur(): this
     minimize(): this
     maximize(): this
     restore(): this
+    move(x?: number, y?: number): this
+    resize(width?: number, height?: number): this
     close(force?: boolean): boolean | void
     setTitle(title: string): this
   }

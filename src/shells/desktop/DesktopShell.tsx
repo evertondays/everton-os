@@ -9,6 +9,7 @@ import { Boot } from './Boot.tsx'
 import { DesktopIcons } from './DesktopIcons.tsx'
 import { Login } from './Login.tsx'
 import { Panel } from './Panel.tsx'
+import { SnapAssist } from './SnapAssist.tsx'
 import { Switcher } from './Switcher.tsx'
 import { Window } from './Window.tsx'
 import { closeAllWindows, openWindow, windows } from './windows.ts'
@@ -109,6 +110,7 @@ function Desktop({ onLogout }: { onLogout(): void }) {
           }}
         />
         <Switcher />
+        <SnapAssist />
       </div>
     </OSContext.Provider>
   )

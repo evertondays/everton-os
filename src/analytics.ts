@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import posthog, { isPostHogConfigured } from './posthog.ts'
+import type { SnapSide, SnapZone } from './shells/desktop/snap.ts'
 import type { AppId } from './system/apps.ts'
 
 // Every custom event the site sends, in one place. Names are snake_case and,
@@ -47,6 +48,9 @@ export interface AnalyticsEvents {
   window_restored: { app: AppId }
   taskbar_item_clicked: { app: AppId; action: 'activate' | 'minimize' }
   window_switcher_used: { app: AppId; open_windows: number }
+  window_snapped: { app: AppId; zone: SnapZone }
+  snap_assist_used: { app: AppId; side: SnapSide; candidates: number }
+  desktop_icons_moved: { icons: number }
 
   // Contact
   contact_details_viewed: { source: 'contact_app' | 'terminal' }
