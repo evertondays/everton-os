@@ -335,17 +335,39 @@
 
 .calendar-flyout-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px 10px 8px;
+  padding: 14px 12px 10px 10px;
+}
+
+.calendar-flyout-now {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* The time with its seconds, large and light, like the Windows clock. */
+.calendar-flyout-clock {
+  padding: 0 6px;
+  font-size: 40px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
 .calendar-flyout-date {
-  padding: 6px 8px;
+  padding: 4px 6px;
   border-radius: 8px;
+  color: var(--accent-strong);
   font-size: 14px;
   text-align: left;
+}
+
+:root[data-theme='dark'] .calendar-flyout-date {
+  color: var(--accent);
 }
 
 .calendar-flyout-date::first-letter {

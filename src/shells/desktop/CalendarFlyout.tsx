@@ -13,18 +13,20 @@ import {
   sameMonth,
   weekdayNames,
 } from '../../system/calendar.ts'
-import { formatDate } from '../../system/format.ts'
+import { formatTime } from '../../system/format.ts'
 import { useClock } from '../../system/useClock.ts'
 
 /**
- * The calendar that opens from the clock, like Windows': today's date on top
- * (it folds the calendar away), then the month with arrows to move through
- * the months. The mouse wheel over the days moves too.
+ * The calendar that opens from the clock, like Windows': the time with its
+ * seconds and today's date on top (a chevron folds the calendar away), then
+ * the month with arrows to move through the months. The mouse wheel over the
+ * days moves too.
  */
 export function CalendarFlyout({ onClose }: { onClose(): void }) {
   const t = useT()
   const locale = useLocale()
-  const now = useClock()
+  // Ticks every second: the flyout shows the seconds.
+  const now = useClock(1000)
   const [shown, setShown] = useState<Month>(() => monthOf(new Date()))
   const [selected, setSelected] = useState<Date | null>(null)
   const [expanded, setExpanded] = useState(true)
@@ -70,9 +72,14 @@ export function CalendarFlyout({ onClose }: { onClose(): void }) {
   return (
     <div className="calendar-flyout" ref={box} role="dialog" aria-label={t('app.calendar')}>
       <div className="calendar-flyout-head">
-        <button className="calendar-flyout-date" onClick={backToToday} title={t('calendar.today')}>
-          {formatDate(now, locale)}
-        </button>
+        <div className="calendar-flyout-now">
+          <time className="calendar-flyout-clock" dateTime={now.toISOString()}>
+            {formatTime(now, locale, true)}
+          </time>
+          <button className="calendar-flyout-date" onClick={backToToday} title={t('calendar.today')}>
+            {fullDate(now, locale)}
+          </button>
+        </div>
         <button
           className="icon-button"
           onClick={() => setExpanded((open) => !open)}

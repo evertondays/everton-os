@@ -20,8 +20,12 @@ export function formatPeriod(start: string | undefined, end: string | null, loca
   return `${formatMonth(start, locale)} – ${end ? formatMonth(end, locale) : present}`
 }
 
-export function formatTime(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit' }).format(date)
+export function formatTime(date: Date, locale: Locale, seconds = false): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(seconds ? { second: '2-digit' } : {}),
+  }).format(date)
 }
 
 export function formatDate(date: Date, locale: Locale, style: 'short' | 'long' = 'long'): string {
