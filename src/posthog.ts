@@ -26,6 +26,12 @@ if (!posthogKey || !posthogHost) {
       capture_unhandled_rejections: true,
       capture_console_errors: false,
     },
+    // Visitors name their own files and folders, and those names show up as text
+    // and labels all over the interface (icons, Files, the taskbar, the editor).
+    // Autocapture keeps the clicks but never their text or labels; what matters is
+    // tracked explicitly in analytics.ts, with names left out.
+    mask_all_text: true,
+    autocapture: { element_attribute_ignorelist: ['aria-label', 'title'] },
     loaded: (instance) => {
       // Tags every event so local development can be told apart from production.
       instance.register({ environment: import.meta.env.MODE })

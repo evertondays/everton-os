@@ -111,7 +111,8 @@ export default function Files({ args }: AppProps) {
 
   const open = (node: FsNode) => {
     const target = childPath(here, node)
-    if (target.startsWith(`${PROJECTS_PATH}/`)) {
+    // Only the résumé's own projects: what visitors make in there is theirs, and so are its names.
+    if (target.startsWith(`${PROJECTS_PATH}/`) && !isUserNode(node) && !chain.some(isUserNode)) {
       track('project_resource_opened', {
         project: target.split('/')[2],
         resource: node.id,
