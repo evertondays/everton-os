@@ -71,12 +71,6 @@ export interface Bookmark {
   url: string
 }
 
-export interface TrashItem {
-  id: string
-  name: string
-  content: string
-}
-
 export interface Resume {
   basics: {
     name: string
@@ -102,6 +96,5 @@ export interface Resume {
     pdf: string | null
     /** Sites the Browser app may open in an iframe. */
     bookmarks: Bookmark[]
-    trash: TrashItem[]
   }
 }

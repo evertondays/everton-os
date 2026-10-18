@@ -7,7 +7,7 @@ import { useLocale, useT } from '../../i18n/index.ts'
 import { type AppArgs, type AppDef, type AppId, appList, apps, resumeShortcut } from '../../system/apps.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH, publicArgs } from '../../system/fs.ts'
-import { type AppWindow, AppWindowContext, type OS, OSContext, useOS } from '../../system/os.ts'
+import { type AppWindow, AppWindowContext, type CloseGuard, type OS, OSContext, useOS } from '../../system/os.ts'
 import { settings } from '../../system/settings.ts'
 import { useClock } from '../../system/useClock.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
@@ -28,12 +28,13 @@ interface Screen {
   origin: { x: number; y: number }
 }
 
-/** Asks the close guards of `list`, top screen first; false if any of them wants to stay. */
-function mayLeave(guards: Map<number, () => boolean>, list: Screen[]) {
-  return list.toReversed().every((screen) => {
+/** Asks the close guards of `list`, top screen first, one at a time; false as soon as one wants to stay. */
+async function mayLeave(guards: Map<number, CloseGuard>, list: Screen[]) {
+  for (const screen of list.toReversed()) {
     const guard = guards.get(screen.key)
-    return !guard || guard()
-  })
+    if (guard && !(await guard())) return false
+  }
+  return true
 }
 
 export default function MobileShell() {
@@ -50,13 +51,29 @@ export default function MobileShell() {
   const top = useRef<Screen | undefined>(undefined)
   const stack = useRef<Screen[]>([])
   // Set by apps that don't want to be left yet (AppWindow.setCloseGuard), by screen key.
-  const [guards] = useState(() => new Map<number, () => boolean>())
+  const [guards] = useState(() => new Map<number, CloseGuard>())
+  // Set while a guard is asking, so more taps on Back or Home don't stack up dialogs.
+  const asking = useRef(false)
 
   useEffect(() => {
     top.current = screens.at(-1)
     stack.current = screens
   })
 
+  /** Runs `leave` if the guards of `list` let it; one question at a time. */
+  const leaveIfAllowed = useCallback(
+    async (list: Screen[], leave: () => void) => {
+      if (asking.current) return
+      asking.current = true
+      try {
+        if (!(await mayLeave(guards, list))) return
+      } finally {
+        asking.current = false
+      }
+      leave()
+    },
+    [guards],
+  )
 
   const open = useCallback((appId: AppId, source: AppSource, args?: AppArgs) => {
     track('app_opened', { app: appId, source, ...publicArgs(args) })
@@ -67,20 +84,24 @@ export default function MobileShell() {
   const os = useMemo<OS>(() => ({ shell: 'mobile', open }), [open])
 
   const back = useCallback(() => {
-    if (top.current && !mayLeave(guards, [top.current])) return
-    if (top.current) track('app_closed', { app: top.current.appId, method: 'back' })
-    setScreens((list) => list.slice(0, -1))
-  }, [guards])
+    const screen = top.current
+    void leaveIfAllowed(screen ? [screen] : [], () => {
+      if (screen) track('app_closed', { app: screen.appId, method: 'back' })
+      setScreens((list) => list.slice(0, -1))
+    })
+  }, [leaveIfAllowed])
 
   const goHome = useCallback(() => {
-    if (!mayLeave(guards, stack.current)) return
-    if (top.current) track('app_closed', { app: top.current.appId, method: 'home' })
-    setClosing(true)
-    window.setTimeout(() => {
-      setScreens([])
-      setClosing(false)
-    }, CLOSE_ANIMATION)
-  }, [guards])
+    const screen = top.current
+    void leaveIfAllowed(stack.current, () => {
+      if (screen) track('app_closed', { app: screen.appId, method: 'home' })
+      setClosing(true)
+      window.setTimeout(() => {
+        setScreens([])
+        setClosing(false)
+      }, CLOSE_ANIMATION)
+    })
+  }, [leaveIfAllowed])
 
   const unlock = useCallback(() => {
     setLocked(false)
@@ -285,7 +306,7 @@ function AppScreen({
   /** Present when there is a screen underneath to go back to. */
   onBack?: () => void
   onClose(): void
-  guards: Map<number, () => boolean>
+  guards: Map<number, CloseGuard>
 }) {
   const t = useT()
   const app = apps[screen.appId]

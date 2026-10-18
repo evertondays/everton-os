@@ -22,7 +22,6 @@ Todo o conteúdo sai de **`src/data/curriculo.json`** (formato baseado no [JSON 
 - `projects[].demo`: endereço que o app Navegador abre dentro de uma janela.
 - `meta.pdf`: caminhos dos PDFs do currículo dentro de `public/`, um por idioma (ex.: `{ "pt": "files/curriculo.pdf", "en": "files/resume.pdf" }`). Com `null`, o Visualizador desenha o currículo a partir dos dados e o botão vira "Salvar em PDF" (impressão da versão clássica).
 - `meta.bookmarks`: sites que o Navegador pode abrir em iframe. A maioria dos grandes sites bloqueia isso; só inclua os que funcionam.
-- `meta.trash`: os arquivos do easter egg da Lixeira.
 
 Os textos da interface (nomes de apps, botões, mensagens do terminal) ficam em `src/i18n/dict.ts`.
 

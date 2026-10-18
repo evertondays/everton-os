@@ -264,3 +264,85 @@ a.icon-button,
 .context-menu-gap {
   width: 15px;
 }
+
+/* System dialogs (components/DialogHost.tsx), above windows and menus */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 96000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  animation: dialog-fade 120ms ease-out;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, 100%);
+  padding: 20px 22px 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  animation: dialog-pop 140ms ease-out;
+}
+
+.dialog h2 {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.dialog p {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.button.is-danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  color: var(--danger);
+}
+
+.button.is-danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.button.is-primary.is-danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+}
+
+@keyframes dialog-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop,
+  .dialog {
+    animation: none;
+  }
+}

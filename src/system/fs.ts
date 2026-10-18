@@ -120,14 +120,8 @@ export function buildFs(resume: Resume, locale: Locale): FsDir {
     ]),
   ])
 
-  const trash: FsDir = {
-    ...dir(
-      'trash',
-      t('fs.trash'),
-      resume.meta.trash.map((item) => markdown(item.id, item.content, item.name)),
-    ),
-    hidden: true,
-  }
+  // Starts empty; only what the visitor deletes goes in.
+  const trash: FsDir = { ...dir('trash', t('fs.trash'), []), hidden: true }
 
   return dir('', t('fs.home'), [
     // Where the files made on the desktop go; it starts empty.

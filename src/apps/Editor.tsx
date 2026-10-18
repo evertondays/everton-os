@@ -1,8 +1,9 @@
 import { CopyPlus, Save, Trash2 } from 'lucide-react'
-import { type FormEvent, type KeyboardEvent, useEffect, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { NameField } from '../components/NameField.tsx'
 import { useT } from '../i18n/index.ts'
 import type { AppProps } from '../system/apps.ts'
+import { showDialog } from '../system/dialog.ts'
 import { canCreateIn, createNode, fsErrorMessage, trashNodes, writeFile } from '../system/fileOps.ts'
 import { DESKTOP_PATH, chainPath, splitPath, useFs, walk } from '../system/fs.ts'
 import { useAppWindow } from '../system/os.ts'
@@ -42,10 +43,56 @@ export default function Editor({ args }: AppProps) {
     appWindow.setTitle(`${dirty ? '● ' : ''}${name}`)
   }, [appWindow, dirty, name])
 
-  // Closing the window, or the page, with unsaved changes asks first.
+  /** Runs a file operation, showing why if it's refused. True if it went through. */
+  const attempt = (action: () => void) => {
+    try {
+      action()
+      setError(null)
+      return true
+    } catch (caught) {
+      setError(fsErrorMessage(t, caught))
+      return false
+    }
+  }
+
+  const askName = () => setNaming(file && !own ? file.name : path ? name : t('fs.newFile'))
+
+  /** Saves in place; a file that has no place yet opens "Save as" instead (and counts as not saved). */
+  const save = () => {
+    if (!own) {
+      askName()
+      return false
+    }
+    return attempt(() => {
+      writeFile(path!, draft)
+      setSaved(draft)
+    })
+  }
+
+  // The close guard below outlives renders; it saves with the latest text.
+  const latestSave = useRef(save)
+
+  useEffect(() => {
+    latestSave.current = save
+  })
+
+  // Closing with unsaved changes asks in a system dialog: save, don't save, or stay.
   useEffect(() => {
     if (!dirty) return
-    appWindow.setCloseGuard(() => window.confirm(t('editor.unsaved', { name })))
+    appWindow.setCloseGuard(async () => {
+      const choice = await showDialog({
+        title: t('editor.unsavedTitle'),
+        message: t('editor.unsaved', { name }),
+        actions: [
+          { value: 'discard', label: t('editor.discard'), danger: true },
+          { value: 'cancel', label: t('common.cancel') },
+          { value: 'save', label: t('editor.save'), primary: true },
+        ],
+      })
+      if (choice === 'discard') return true
+      return choice === 'save' && latestSave.current()
+    })
+    // Leaving the whole page can only be stopped by the browser's own prompt.
     const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => {
@@ -55,28 +102,6 @@ export default function Editor({ args }: AppProps) {
   }, [appWindow, dirty, name, t])
 
   if (!opened) return <div className="app app-empty">{t('viewer.notFound')}</div>
-
-  const attempt = (action: () => void) => {
-    try {
-      action()
-      setError(null)
-    } catch (caught) {
-      setError(fsErrorMessage(t, caught))
-    }
-  }
-
-  const askName = () => setNaming(file && !own ? file.name : path ? name : t('fs.newFile'))
-
-  const save = () => {
-    if (!own) {
-      askName()
-      return
-    }
-    attempt(() => {
-      writeFile(path!, draft)
-      setSaved(draft)
-    })
-  }
 
   const saveAs = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -146,7 +171,7 @@ export default function Editor({ args }: AppProps) {
             aria-label={t('editor.name')}
           />
           <button type="button" className="button" onClick={() => setNaming(null)}>
-            {t('editor.cancel')}
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button is-primary">
             {t('editor.save')}

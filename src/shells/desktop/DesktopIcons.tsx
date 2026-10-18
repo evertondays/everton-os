@@ -30,7 +30,7 @@ import { PANEL_HEIGHT } from './layout.ts'
 interface DesktopIcon {
   id: string
   label: string
-  icon: Pick<AppDef, 'icon' | 'tint'>
+  icon: Pick<AppDef, 'icon' | 'tint'> & { ink?: string }
   open(): void
   /** The visitor's own file or folder this icon stands for. */
   node?: FsNode
@@ -172,7 +172,7 @@ export function DesktopIcons() {
   // Measured from the window first, so the first paint already has the real grid.
   const [grid, setGrid] = useState(() => measureGrid(window.innerWidth, window.innerHeight - PANEL_HEIGHT))
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
-  const [drag, setDrag] = useState<{ ids: string[]; dx: number; dy: number } | null>(null)
+  const [drag, setDrag] = useState<{ ids: string[]; dx: number; dy: number; overTrash: boolean } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
 
   const shortcuts: DesktopIcon[] = [
@@ -345,6 +345,15 @@ export function DesktopIcons() {
     }
   }
 
+  /** The visitor's own icons among `dragged`, if the pointer is over the Trash: dropping there deletes them. */
+  const forTrash = (dragged: string[], event: PointerEvent): DesktopIcon[] => {
+    if (dragged.includes('trash')) return []
+    const { x, y } = localPoint(event)
+    const { left, top, right, bottom } = iconBox(layout.trash)
+    if (x < left || x > right || y < top || y > bottom) return []
+    return icons.filter((icon) => icon.node && dragged.includes(icon.id))
+  }
+
   const onIconPointerMove = (event: PointerEvent) => {
     const current = gesture.current
     if (current?.kind !== 'icons') return
@@ -355,7 +364,7 @@ export function DesktopIcons() {
       current.moved = true
       setSelected(new Set(current.ids))
     }
-    setDrag({ ids: current.ids, dx, dy })
+    setDrag({ ids: current.ids, dx, dy, overTrash: forTrash(current.ids, event).length > 0 })
   }
 
   const onIconPointerUp = (event: PointerEvent) => {
@@ -363,7 +372,11 @@ export function DesktopIcons() {
     if (current?.kind !== 'icons') return
     gesture.current = null
     setDrag(null)
-    if (current.moved) {
+    const trashed = current.moved ? forTrash(current.ids, event) : []
+    if (trashed.length > 0) {
+      // Into the Trash; any shortcuts dragged along can't be deleted and stay where they were.
+      remove(trashed)
+    } else if (current.moved) {
       drop(current.ids, event.clientX - current.startX, event.clientY - current.startY)
     } else if (current.additive) {
       const next = new Set(selected)
@@ -457,7 +470,9 @@ export function DesktopIcons() {
           <button
             key={icon.id}
             data-icon={icon.id}
-            className={`desktop-icon${selected.has(icon.id) ? ' is-selected' : ''}${dragging ? ' is-dragging' : ''}`}
+            className={`desktop-icon${selected.has(icon.id) ? ' is-selected' : ''}${dragging ? ' is-dragging' : ''}${
+              icon.id === 'trash' && drag?.overTrash ? ' is-drop-target' : ''
+            }`}
             style={{
               left,
               top,

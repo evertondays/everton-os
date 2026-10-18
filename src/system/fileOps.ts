@@ -2,6 +2,7 @@ import { type FileSource, track } from '../analytics.ts'
 import type { Translate } from '../i18n/index.ts'
 import { DESKTOP_PATH, type FsDir, type FsNode, TRASH_PATH, chainPath, getFs, joinPath, walk } from './fs.ts'
 import { settings } from './settings.ts'
+import { useStore } from './store.ts'
 import { FsError, type UserNode, commit, isInside, newKey, userFs } from './userFs.ts'
 
 // Everything that changes the visitor's files. Paths are absolute; each
@@ -191,13 +192,18 @@ export function purgeNodes(paths: string[], source: FileSource) {
   if (records.length > 0) track('file_deleted', { items: records.length, permanent: true, source })
 }
 
-/** Deletes for good everything the visitor put in the Trash. The résumé's own jokes stay. */
+/** Deletes for good everything in the Trash. */
 export function emptyTrash() {
   const { nodes } = userFs.get()
   const items = nodes.filter((node) => node.parent === TRASH_PATH).length
   if (items === 0) return
   commit(nodes.filter((node) => !isInside(node.parent, TRASH_PATH)))
   track('trash_emptied', { items })
+}
+
+/** Whether there is anything in the Trash. */
+export function useTrashFull(): boolean {
+  return useStore(userFs, (state) => state.nodes.some((node) => node.parent === TRASH_PATH))
 }
 
 /** The message for an FsError; anything else is a bug and is thrown again. */

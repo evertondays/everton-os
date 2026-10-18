@@ -185,24 +185,6 @@
   ],
   "meta": {
     "pdf": { "pt": null, "en": null },
-    "bookmarks": [{ "name": "Wikipédia", "url": "https://pt.wikipedia.org" }],
-    "trash": [
-      {
-        "id": "curriculo-2019.md",
-        "name": { "pt": "curriculo-2019-final-v7.md", "en": "resume-2019-final-v7.md" },
-        "content": {
-          "pt": "# Currículo (2019)\n\n**Objetivo:** qualquer vaga, por favor.\n\n## Habilidades\n\n- Pacote Office (avançado)\n- Digitação rápida\n- \"Proativo\" e \"dinâmico\"\n\n> Arquivado com carinho. A versão atual está na área de trabalho.",
-          "en": "# Resume (2019)\n\n**Objective:** any job, please.\n\n## Skills\n\n- Office suite (advanced)\n- Fast typing\n- \"Proactive\" and \"dynamic\"\n\n> Archived with love. The current version is on the desktop."
-        }
-      },
-      {
-        "id": "projetos-abandonados.md",
-        "name": { "pt": "projetos-abandonados.md", "en": "abandoned-projects.md" },
-        "content": {
-          "pt": "# Projetos abandonados\n\n- **todo-app-17**: a décima sétima lista de tarefas. Também não terminei.\n- **meu-framework**: durou um fim de semana.\n- **blog**: três posts sobre como montar o blog.\n\nTodo projeto que funciona hoje começou como um destes.",
-          "en": "# Abandoned projects\n\n- **todo-app-17**: the seventeenth to-do list. Didn't finish it either.\n- **my-framework**: lasted one weekend.\n- **blog**: three posts about setting up the blog.\n\nEvery project that works today started as one of these."
-        }
-      }
-    ]
+    "bookmarks": [{ "name": "Wikipédia", "url": "https://pt.wikipedia.org" }]
   }
 }

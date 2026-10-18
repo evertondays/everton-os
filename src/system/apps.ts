@@ -175,9 +175,9 @@ export const apps: Record<AppId, AppDef> = {
   },
 }
 
-/** How the visitor's own files and folders look as desktop icons. */
-export const userNodeIcons: Record<'file' | 'dir', Pick<AppDef, 'icon' | 'tint'>> = {
-  file: { icon: FileText, tint: ['#a9b4c2', '#66727f'] },
+/** How the visitor's own files and folders look as desktop icons: a text file is a white page with blue writing. */
+export const userNodeIcons: Record<'file' | 'dir', Pick<AppDef, 'icon' | 'tint'> & { ink?: string }> = {
+  file: { icon: FileText, tint: ['#ffffff', '#dde4ee'], ink: '#2f6fe0' },
   dir: { icon: Folder, tint: ['#4fc3ff', '#1589e0'] },
 }
 

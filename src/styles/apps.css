@@ -403,6 +403,16 @@
   color: #5a55e0;
 }
 
+/* The visitor's own text files: blue, like their desktop icon. */
+.file-icon.is-text {
+  color: #2f6fe0;
+  fill: color-mix(in srgb, #2f6fe0 12%, transparent);
+}
+
+:root[data-theme='dark'] .file-icon.is-text {
+  color: #6aa1ff;
+}
+
 .file-thumbnail {
   max-width: 76px;
   border-radius: 4px;

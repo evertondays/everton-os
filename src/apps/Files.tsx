@@ -23,6 +23,7 @@ import { ContextMenu, type MenuItem, type MenuState } from '../components/Contex
 import { RenameField } from '../components/NameField.tsx'
 import { useT } from '../i18n/index.ts'
 import type { AppProps } from '../system/apps.ts'
+import { confirmDialog } from '../system/dialog.ts'
 import {
   canCreateIn,
   createNode,
@@ -57,6 +58,7 @@ function NodeIcon({ node, size }: { node: FsNode; size: number }) {
   if (node.type === 'image') return <img className="file-thumbnail" src={node.src} alt="" style={{ height: size }} />
   if (node.type === 'resume') return <FileUser className="file-icon is-resume" size={size} strokeWidth={1.5} />
   if (node.type === 'link') return <Globe className="file-icon is-link" size={size} strokeWidth={1.5} />
+  if (node.type === 'text') return <FileText className="file-icon is-text" size={size} strokeWidth={1.5} />
   return <FileText className="file-icon" size={size} strokeWidth={1.5} />
 }
 
@@ -156,16 +158,30 @@ export default function Files({ args }: AppProps) {
       setSelected(null)
     })
 
-  const purge = (node: FsNode) => {
-    if (!window.confirm(t('action.confirmPurge', { count: 1 }))) return
+  const purge = async (node: FsNode) => {
+    const confirmed = await confirmDialog({
+      title: t('action.purge'),
+      message: t('action.confirmPurge', { name: node.name }),
+      confirm: t('action.purge'),
+      cancel: t('common.cancel'),
+      danger: true,
+    })
+    if (!confirmed) return
     attempt(() => {
       purgeNodes([childPath(here, node)], 'files')
       setSelected(null)
     })
   }
 
-  const empty = () => {
-    if (window.confirm(t('action.confirmEmpty'))) attempt(emptyTrash)
+  const empty = async () => {
+    const confirmed = await confirmDialog({
+      title: t('action.emptyTrash'),
+      message: t('action.confirmEmpty'),
+      confirm: t('action.emptyTrash'),
+      cancel: t('common.cancel'),
+      danger: true,
+    })
+    if (confirmed) attempt(emptyTrash)
   }
 
   const itemActions = (node: FsNode): MenuItem[] => {

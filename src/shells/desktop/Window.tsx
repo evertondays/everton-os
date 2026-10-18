@@ -1,9 +1,9 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { type RefObject, Suspense, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { track } from '../../analytics.ts'
 import { useT } from '../../i18n/index.ts'
 import { apps } from '../../system/apps.ts'
-import { type AppWindow, AppWindowContext } from '../../system/os.ts'
+import { type AppWindow, AppWindowContext, type CloseGuard } from '../../system/os.ts'
 import { PANEL_HEIGHT, workArea } from './layout.ts'
 import { isSide, oppositeSide } from './snap.ts'
 import { useWindow } from './useWindow.ts'
@@ -33,19 +33,33 @@ function placement(win: Win) {
   }
 }
 
+/**
+ * Closes window `id` unless its app's close guard keeps it open. While the
+ * guard is asking (a dialog), more close clicks are ignored.
+ */
+async function guardedClose(id: string, guard: RefObject<CloseGuard | null>, asking: RefObject<boolean>) {
+  if (asking.current) return
+  asking.current = true
+  try {
+    if (guard.current && !(await guard.current())) return
+  } finally {
+    asking.current = false
+  }
+  closeWindow(id)
+}
+
 export function Window({ win }: { win: Win }) {
   const t = useT()
   const app = apps[win.appId]
   const { id } = win
-  const closeGuard = useRef<(() => boolean) | null>(null)
+  const closeGuard = useRef<CloseGuard | null>(null)
+  const asking = useRef(false)
 
   const { container, handle } = useWindow({
     title: win.title ?? t(app.name),
     ...placement(win),
     bottom: PANEL_HEIGHT,
-    onClose: () => {
-      if (!closeGuard.current || closeGuard.current()) closeWindow(id)
-    },
+    onClose: () => void guardedClose(id, closeGuard, asking),
     onFocus: () => windowFocused(id),
     onBlur: () => windowBlurred(id),
     onMinimize: () => windowMinimized(id, true),
@@ -62,9 +76,7 @@ export function Window({ win }: { win: Win }) {
   const appWindow = useMemo<AppWindow>(
     () => ({
       setTitle: (title) => setWindowTitle(id, title),
-      close: () => {
-        if (!closeGuard.current || closeGuard.current()) closeWindow(id)
-      },
+      close: () => void guardedClose(id, closeGuard, asking),
       setCloseGuard: (guard) => {
         closeGuard.current = guard
       },

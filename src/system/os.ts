@@ -23,15 +23,18 @@ export function useOS(): OS {
   return os
 }
 
+export type CloseGuard = () => boolean | Promise<boolean>
+
 /** The window (desktop) or screen (mobile) an app instance is running in. */
 export interface AppWindow {
   setTitle(title: string): void
   close(): void
   /**
    * While set, closing the window or screen asks `guard` first, and it stays
-   * open if `guard` returns false (unsaved changes, say). Null removes it.
+   * open if `guard` returns (or resolves to) false: unsaved changes, say,
+   * asked about in a dialog. Null removes it.
    */
-  setCloseGuard(guard: (() => boolean) | null): void
+  setCloseGuard(guard: CloseGuard | null): void
 }
 
 export const AppWindowContext = createContext<AppWindow>({ setTitle() {}, close() {}, setCloseGuard() {} })

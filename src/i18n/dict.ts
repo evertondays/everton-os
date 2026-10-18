@@ -38,8 +38,8 @@ const pt = {
   'action.restore': 'Restaurar',
   'action.purge': 'Excluir permanentemente',
   'action.emptyTrash': 'Esvaziar lixeira',
-  'action.confirmPurge': 'Excluir {count} item(ns) permanentemente? Isso não pode ser desfeito.',
-  'action.confirmEmpty': 'Esvaziar a lixeira? Os itens serão excluídos permanentemente.',
+  'action.confirmPurge': '"{name}" será excluído para sempre. Isso não pode ser desfeito.',
+  'action.confirmEmpty': 'Tudo o que está na lixeira será excluído para sempre. Isso não pode ser desfeito.',
 
   'fs.home': 'Pasta pessoal',
   'fs.resume': 'Currículo.pdf',
@@ -67,6 +67,7 @@ const pt = {
   'common.back': 'Voltar',
   'common.close': 'Fechar',
   'common.download': 'Baixar',
+  'common.cancel': 'Cancelar',
 
   'boot.lines': [
     'Iniciando Everton OS 1.0',
@@ -111,8 +112,9 @@ const pt = {
   'editor.stats': '{lines} linhas · {chars} caracteres',
   'editor.name': 'Nome do arquivo',
   'editor.saveIn': 'Salvar em {folder}',
-  'editor.cancel': 'Cancelar',
-  'editor.unsaved': 'Há alterações não salvas em "{name}". Fechar mesmo assim?',
+  'editor.unsavedTitle': 'Salvar as alterações?',
+  'editor.unsaved': 'Há alterações não salvas em "{name}". Se fechar sem salvar, elas serão perdidas.',
+  'editor.discard': 'Não salvar',
   'editor.missing': 'Este arquivo não existe mais. Salve com outro nome para não perder o texto.',
 
   'terminal.welcome': 'Everton OS 1.0 — digite "help" para ver os comandos.',
@@ -228,8 +230,8 @@ const en: Record<TKey, string> = {
   'action.restore': 'Restore',
   'action.purge': 'Delete permanently',
   'action.emptyTrash': 'Empty Trash',
-  'action.confirmPurge': 'Permanently delete {count} item(s)? This cannot be undone.',
-  'action.confirmEmpty': 'Empty the Trash? Its items will be permanently deleted.',
+  'action.confirmPurge': '"{name}" will be deleted for good. This cannot be undone.',
+  'action.confirmEmpty': 'Everything in the Trash will be deleted for good. This cannot be undone.',
 
   'fs.home': 'Home',
   'fs.resume': 'Resume.pdf',
@@ -257,6 +259,7 @@ const en: Record<TKey, string> = {
   'common.back': 'Back',
   'common.close': 'Close',
   'common.download': 'Download',
+  'common.cancel': 'Cancel',
 
   'boot.lines': [
     'Starting Everton OS 1.0',
@@ -301,8 +304,9 @@ const en: Record<TKey, string> = {
   'editor.stats': '{lines} lines · {chars} characters',
   'editor.name': 'File name',
   'editor.saveIn': 'Save in {folder}',
-  'editor.cancel': 'Cancel',
-  'editor.unsaved': '"{name}" has unsaved changes. Close anyway?',
+  'editor.unsavedTitle': 'Save your changes?',
+  'editor.unsaved': '"{name}" has unsaved changes. They will be lost if you close without saving.',
+  'editor.discard': "Don't save",
   'editor.missing': 'This file no longer exists. Save it under a new name to keep the text.',
 
   'terminal.welcome': 'Everton OS 1.0 — type "help" to see the commands.',
