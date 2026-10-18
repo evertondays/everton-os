@@ -298,18 +298,142 @@
   color: var(--text-dim);
 }
 
+/* The clock is a button: it opens the calendar (CalendarFlyout.tsx). */
 .panel-clock {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  padding: 0 8px 0 6px;
+  padding: 0 10px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
 }
 
+.panel-clock time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .panel-clock span:first-child {
   font-weight: 600;
+}
+
+/* Calendar flyout, above the clock like on Windows */
+
+.calendar-flyout {
+  position: fixed;
+  right: 8px;
+  bottom: 56px;
+  z-index: 90001;
+  width: 340px;
+  border-radius: 14px;
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  overflow: hidden;
+  animation: menu-in 0.14s ease-out;
+}
+
+.calendar-flyout-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 8px;
+}
+
+.calendar-flyout-date {
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: left;
+}
+
+.calendar-flyout-date::first-letter {
+  text-transform: uppercase;
+}
+
+.calendar-flyout-date:hover {
+  background: var(--hover);
+}
+
+.calendar-flyout-body {
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.calendar-flyout-month {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.calendar-flyout-month span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.calendar-flyout-arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--text-dim);
+}
+
+.calendar-flyout-arrow:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.calendar-flyout-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-flyout-weekday {
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.calendar-flyout-day {
+  justify-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 13px;
+}
+
+.calendar-flyout-day:hover {
+  background: var(--hover);
+}
+
+.calendar-flyout-day.is-outside {
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.calendar-flyout-day.is-selected {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.calendar-flyout-day.is-today {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.calendar-flyout-day.is-today.is-selected {
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    inset 0 0 0 4px var(--glass);
 }
 
 /* Applications menu */

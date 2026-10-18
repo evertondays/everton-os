@@ -4,7 +4,7 @@ import { type AppSource, track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { type AppArgs, type AppDef, type AppId, appList, apps, resumeShortcut } from '../../system/apps.ts'
+import { type AppArgs, type AppDef, type AppId, apps, appsFor, resumeShortcut } from '../../system/apps.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH, publicArgs } from '../../system/fs.ts'
 import { type AppWindow, AppWindowContext, type CloseGuard, type OS, OSContext, useOS } from '../../system/os.ts'
@@ -246,7 +246,7 @@ function HomeScreen() {
       open: () => os.open('viewer', 'home_screen', { path: RESUME_PATH }),
     },
     // The résumé shortcut stands in for the Viewer; dock apps live in the dock.
-    ...appList
+    ...appsFor('mobile')
       .filter((app) => app.id !== 'viewer' && !DOCK.includes(app.id))
       .map((app) => appIcon(app, 'home_screen')),
   ]

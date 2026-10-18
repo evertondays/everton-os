@@ -16,6 +16,7 @@ const pt = {
   'app.settings': 'Configurações',
   'app.trash': 'Lixeira',
   'app.editor': 'Editor de texto',
+  'app.calendar': 'Calendário',
   'app.resume': 'Currículo',
 
   'fs.desktop': 'Área de trabalho',
@@ -92,6 +93,14 @@ const pt = {
   'menu.empty': 'Nenhum aplicativo encontrado',
   'menu.logout': 'Sair',
   'snap.assist': 'Escolha uma janela para este lado',
+
+  'calendar.open': 'Abrir calendário',
+  'calendar.previous': 'Mês anterior',
+  'calendar.next': 'Próximo mês',
+  'calendar.today': 'Hoje',
+  'calendar.collapse': 'Recolher calendário',
+  'calendar.expand': 'Mostrar calendário',
+  'calendar.week': 'Semana {week}',
 
   'mobile.slide': 'Deslize para abrir',
   'mobile.home': 'Ir para a tela inicial',
@@ -212,6 +221,7 @@ const en: Record<TKey, string> = {
   'app.settings': 'Settings',
   'app.trash': 'Trash',
   'app.editor': 'Text Editor',
+  'app.calendar': 'Calendar',
   'app.resume': 'Résumé',
 
   'fs.desktop': 'Desktop',
@@ -288,6 +298,14 @@ const en: Record<TKey, string> = {
   'menu.empty': 'No applications found',
   'menu.logout': 'Log out',
   'snap.assist': 'Choose a window for this side',
+
+  'calendar.open': 'Open calendar',
+  'calendar.previous': 'Previous month',
+  'calendar.next': 'Next month',
+  'calendar.today': 'Today',
+  'calendar.collapse': 'Hide calendar',
+  'calendar.expand': 'Show calendar',
+  'calendar.week': 'Week {week}',
 
   'mobile.slide': 'Swipe up to open',
   'mobile.home': 'Go to the home screen',

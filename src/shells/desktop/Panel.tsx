@@ -34,7 +34,17 @@ async function toggleFullscreen() {
   ])
 }
 
-export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu(): void }) {
+export function Panel({
+  menuOpen,
+  onToggleMenu,
+  calendarOpen,
+  onToggleCalendar,
+}: {
+  menuOpen: boolean
+  onToggleMenu(): void
+  calendarOpen: boolean
+  onToggleCalendar(): void
+}) {
   const t = useT()
   const locale = useLocale()
   const os = useOS()
@@ -125,10 +135,19 @@ export function Panel({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleM
           <Wifi size={16} />
           <Volume2 size={16} />
         </span>
-        <time className="panel-clock" dateTime={now.toISOString()}>
-          <span>{formatTime(now, locale)}</span>
-          <span>{formatDate(now, locale, 'short')}</span>
-        </time>
+        <button
+          className={`panel-button panel-clock${calendarOpen ? ' is-active' : ''}`}
+          data-clock-button
+          onClick={onToggleCalendar}
+          aria-expanded={calendarOpen}
+          aria-label={t('calendar.open')}
+          title={formatDate(now, locale)}
+        >
+          <time dateTime={now.toISOString()}>
+            <span>{formatTime(now, locale)}</span>
+            <span>{formatDate(now, locale, 'short')}</span>
+          </time>
+        </button>
       </div>
     </footer>
   )
