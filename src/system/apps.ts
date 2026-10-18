@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { type ComponentType, type LazyExoticComponent, lazy } from 'react'
 import type { TKey } from '../i18n/dict.ts'
+import type { ShortcutId } from './userFs.ts'
 
 export type AppId =
   | 'files'
@@ -186,6 +187,14 @@ export const resumeShortcut: Pick<AppDef, 'name' | 'icon' | 'tint'> = {
   name: 'app.resume',
   icon: FileUser,
   tint: ['#ff7a70', '#d93a3a'],
+}
+
+/** How the desktop's shortcuts look, wherever they are. */
+export const shortcutIcons: Record<ShortcutId, Pick<AppDef, 'icon' | 'tint'>> = {
+  resume: resumeShortcut,
+  projects: apps.files,
+  contact: apps.contact,
+  terminal: apps.terminal,
 }
 
 /** Order of the apps in the menu (desktop) and on the home screen (mobile). */

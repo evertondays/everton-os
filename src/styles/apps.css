@@ -420,6 +420,19 @@
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
+/* Where files being dragged would go if dropped now: a folder, a place in the sidebar, a folder in the path. */
+.file.is-drop-target,
+.files-places button.is-drop-target,
+.breadcrumb button.is-drop-target {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.files-grid.is-drop-target,
+.app-empty.is-drop-target {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
 .file-icon {
   color: var(--text-dim);
 }

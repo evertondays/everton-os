@@ -1,9 +1,10 @@
 import { type FileSource, track } from '../analytics.ts'
+import { translate } from '../i18n/dict.ts'
 import type { Translate } from '../i18n/index.ts'
 import { DESKTOP_PATH, type FsDir, type FsNode, TRASH_PATH, chainPath, getFs, joinPath, walk } from './fs.ts'
 import { settings } from './settings.ts'
 import { useStore } from './store.ts'
-import { FsError, type UserNode, commit, isInside, newKey, userFs } from './userFs.ts'
+import { FsError, SHORTCUTS, type UserNode, commit, isInside, newKey, userFs } from './userFs.ts'
 
 // Everything that changes the visitor's files. Paths are absolute; each
 // operation checks what it's given and throws an FsError when it refuses.
@@ -21,6 +22,13 @@ function resolve(path: string): { node: FsNode; path: string } {
 }
 
 export const isUserNode = (node: FsNode) => node.key !== undefined
+
+/** Whether a node can be renamed and deleted: the visitor's own, but not a shortcut, which can only be moved. */
+export const canModify = (node: FsNode) => isUserNode(node) && !(node.kind === 'file' && node.type === 'shortcut')
+
+/** The name people see: a shortcut's is its label, in the current language. */
+const shownName = (record: UserNode) =>
+  record.shortcut ? translate(settings.get().locale, SHORTCUTS[record.shortcut].label) : record.name
 
 /** Whether `path` is something inside the Trash (not the Trash itself). */
 export const isInTrash = (path: string) => path !== TRASH_PATH && isInside(path, TRASH_PATH)
@@ -131,7 +139,9 @@ export function createNode(
 /** Replaces the text of one of the visitor's files. */
 export function writeFile(path: string, content: string) {
   const record = ownNode(path)
-  if (record.kind !== 'file' || isInside(record.parent, TRASH_PATH)) throw new FsError('readOnly', record.name)
+  if (record.kind !== 'file' || record.shortcut || isInside(record.parent, TRASH_PATH)) {
+    throw new FsError('readOnly', shownName(record))
+  }
   if (content.length > MAX_FILE_LENGTH) throw new FsError('tooLarge', record.name)
   commit(
     userFs
@@ -150,7 +160,7 @@ export function touchNode(path: string) {
 /** Renames in place and returns the new path. Extensions are left as typed. */
 export function renameNode(path: string, name: string): string {
   const record = ownNode(path)
-  if (isInside(record.parent, TRASH_PATH)) throw new FsError('readOnly', record.name)
+  if (record.shortcut || isInside(record.parent, TRASH_PATH)) throw new FsError('readOnly', shownName(record))
   const clean = cleanName(name, record.kind, false)
   if (clean === record.name) return pathOf(record)
   const { folder } = writableFolder(record.parent)
@@ -160,15 +170,38 @@ export function renameNode(path: string, name: string): string {
   return joinPath(record.parent, clean)
 }
 
-/** Moves nodes to the Trash, remembering where they were. */
+/** Moves nodes to the Trash, remembering where they were. Shortcuts stay where they are. */
 export function trashNodes(paths: string[], source: FileSource) {
-  const records = ownNodes(paths).filter((record) => !isInside(record.parent, TRASH_PATH))
+  const own = ownNodes(paths)
+  const shortcut = own.find((record) => record.shortcut)
+  const records = own.filter((record) => !record.shortcut && !isInside(record.parent, TRASH_PATH))
+  if (shortcut && records.length === 0) throw new FsError('readOnly', shownName(shortcut))
   for (const { key } of records) {
     const record = current(key)
     const trash = resolve(TRASH_PATH).node as FsDir
     commit(moved(record, TRASH_PATH, uniqueName(trash, record.name, record.kind), { trashedFrom: record.parent }))
   }
   if (records.length > 0) track('file_deleted', { items: records.length, permanent: false, source })
+}
+
+/**
+ * Moves nodes into the folder `target`, keeping each one's key (so a desktop
+ * icon keeps its place). A taken name gets a number. Moving something out of
+ * the Trash this way restores it.
+ */
+export function moveNodes(paths: string[], target: string, source: FileSource) {
+  const { path: to } = writableFolder(target)
+  const records = ownNodes(paths)
+  let count = 0
+  for (const { key } of records) {
+    const record = current(key)
+    if (record.parent === to) continue
+    if (record.kind === 'dir' && isInside(to, pathOf(record))) throw new FsError('intoItself', record.name)
+    const folder = resolve(to).node as FsDir
+    commit(moved(record, to, uniqueName(folder, record.name, record.kind), { trashedFrom: undefined }))
+    count++
+  }
+  if (count > 0) track('file_moved', { items: count, source })
 }
 
 /** Puts nodes back where they were deleted from, or on the desktop if that folder is gone. */
@@ -200,6 +233,22 @@ export function emptyTrash() {
   commit(nodes.filter((node) => !isInside(node.parent, TRASH_PATH)))
   track('trash_emptied', { items })
 }
+
+/** The drag-and-drop type of files dragged out of Files: a JSON list of their paths. */
+export const FILE_DRAG_TYPE = 'application/x-everton-os-paths'
+
+/** The paths in a drop of FILE_DRAG_TYPE, or none. */
+export function draggedPaths(data: DataTransfer): string[] {
+  try {
+    const paths: unknown = JSON.parse(data.getData(FILE_DRAG_TYPE) || '[]')
+    return Array.isArray(paths) ? paths.filter((path): path is string => typeof path === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/** Whether a drag carries files from Files (its paths can only be read on drop). */
+export const isFileDrag = (data: DataTransfer) => data.types.includes(FILE_DRAG_TYPE)
 
 /** Whether there is anything in the Trash. */
 export function useTrashFull(): boolean {

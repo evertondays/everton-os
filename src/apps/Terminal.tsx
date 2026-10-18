@@ -5,7 +5,7 @@ import { useLocale, useT } from '../i18n/index.ts'
 import { appList } from '../system/apps.ts'
 import { resumeText } from '../system/content.ts'
 import { createNode, fsErrorMessage, isInTrash, isUserNode, purgeNodes, touchNode, trashNodes } from '../system/fileOps.ts'
-import { type FsNode, chainPath, getFs, splitPath, useFs, visibleChildren, walk } from '../system/fs.ts'
+import { type FsNode, chainPath, getFs, shortcutTarget, splitPath, useFs, visibleChildren, walk } from '../system/fs.ts'
 import { openNode, useAppWindow, useOS } from '../system/os.ts'
 import { setLocale, setTheme } from '../system/settings.ts'
 import { FsError } from '../system/userFs.ts'
@@ -111,8 +111,14 @@ export default function TerminalApp() {
     cat: (args) => {
       const target = args.join(' ')
       if (!target) return t('terminal.usage', { usage: 'cat <file>' })
-      const node = walk(fs, target, cwd)?.at(-1)
+      let node = walk(fs, target, cwd)?.at(-1)
       if (!node) return t('terminal.noSuchFile', { name: target })
+      // A shortcut shows the file it points to; one that opens an app has nothing to show.
+      if (node.kind === 'file' && node.type === 'shortcut') {
+        const pointed = shortcutTarget(fs, node)
+        if (!pointed || 'app' in pointed) return t('terminal.shortcut', { name: node.name })
+        node = pointed.chain.at(-1)!
+      }
       if (node.kind === 'dir') return t('terminal.isDir', { name: target })
       if (node.type === 'resume') return resumeText(resume, locale)
       if (node.type === 'link') return node.url

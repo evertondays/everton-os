@@ -1,4 +1,5 @@
 import { type Locale } from '../data/localize.ts'
+import type { AppId } from './apps.ts'
 import { getResume } from '../data/resume.ts'
 import type { Media, Resume } from '../data/types.ts'
 import { translate } from '../i18n/dict.ts'
@@ -12,15 +13,15 @@ import {
 import { mediaSrc, placeholderImage } from './media.ts'
 import { settings, useSettings } from './settings.ts'
 import { useStore } from './store.ts'
-import { type UserNode, userFs } from './userFs.ts'
+import { SHORTCUTS, type ShortcutId, type UserNode, userFs } from './userFs.ts'
 
 // The virtual file system: a read-only tree generated from the resume data,
 // with the visitor's own files and folders (userFs.ts) laid over it.
 // Every node has a stable `id` (used in paths, the same in every language)
 // and a localized `name` (what the user sees and may also type in the Terminal).
 
-/** `text` is a file the visitor made; the others come from the résumé. */
-export type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text'
+/** `text` is a file the visitor made, `shortcut` one of the desktop's shortcuts; the others come from the résumé. */
+export type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text' | 'shortcut'
 
 export interface FsFile {
   kind: 'file'
@@ -35,6 +36,8 @@ export interface FsFile {
   url?: string
   /** Set on the visitor's own nodes, which are the only ones that can change: their key in userFs. */
   key?: string
+  /** Which shortcut a `shortcut` file is. */
+  shortcut?: ShortcutId
 }
 
 export interface FsDir {
@@ -137,18 +140,27 @@ export function buildFs(resume: Resume, locale: Locale): FsDir {
 }
 
 /** Adds the visitor's nodes to a copy of `base`, each under the folder its `parent` path names. */
-function overlay(base: FsDir, nodes: UserNode[]): FsDir {
+function overlay(base: FsDir, nodes: UserNode[], locale: Locale): FsDir {
   const byParent = new Map<string, UserNode[]>()
   for (const node of nodes) byParent.set(node.parent, [...(byParent.get(node.parent) ?? []), node])
 
-  const toFsNode = (node: UserNode, path: string): FsNode =>
-    node.kind === 'dir'
-      ? attach({ kind: 'dir', id: node.name, name: node.name, children: [], key: node.key }, path)
-      : { kind: 'file', id: node.name, name: node.name, type: 'text', content: node.content ?? '', key: node.key }
+  const shortcutOrder = Object.keys(SHORTCUTS)
+  // Shortcuts first, in their usual order, then folders, then files, by name.
+  const rank = (node: UserNode) =>
+    node.shortcut ? shortcutOrder.indexOf(node.shortcut) : shortcutOrder.length + (node.kind === 'dir' ? 0 : 1)
+
+  const toFsNode = (node: UserNode, path: string): FsNode => {
+    if (node.kind === 'dir') return attach({ kind: 'dir', id: node.name, name: node.name, children: [], key: node.key }, path)
+    if (node.shortcut) {
+      const name = translate(locale, SHORTCUTS[node.shortcut].label)
+      return { kind: 'file', id: node.name, name, type: 'shortcut', shortcut: node.shortcut, key: node.key }
+    }
+    return { kind: 'file', id: node.name, name: node.name, type: 'text', content: node.content ?? '', key: node.key }
+  }
 
   function attach(folder: FsDir, path: string): FsDir {
     const own = (byParent.get(path) ?? [])
-      .toSorted((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1))
+      .toSorted((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
       .map((node) => toFsNode(node, joinPath(path, node.name)))
     const children = folder.children.map((child) =>
       child.kind === 'dir' ? attach(child, childPath(path, child)) : child,
@@ -177,7 +189,7 @@ export function getFs(locale: Locale): FsDir {
   const { nodes } = userFs.get()
   const hit = merged.get(locale)
   if (hit?.nodes === nodes) return hit.root
-  const root = overlay(getBaseFs(locale), nodes)
+  const root = overlay(getBaseFs(locale), nodes, locale)
   merged.set(locale, { nodes, root })
   return root
 }
@@ -215,6 +227,15 @@ export function walk(root: FsDir, path: string, cwd = '/'): FsNode[] | null {
     chain.push(next)
   }
   return chain
+}
+
+/** Where a shortcut leads: the app it opens, or the chain of the node it points to (null if that's gone). */
+export function shortcutTarget(root: FsDir, node: FsFile): { app: AppId } | { chain: FsNode[] } | null {
+  if (!node.shortcut) return null
+  const target: { app?: AppId; path?: string } = SHORTCUTS[node.shortcut]
+  if (target.app) return { app: target.app }
+  const chain = target.path ? walk(root, target.path) : null
+  return chain ? { chain } : null
 }
 
 /** The canonical (id-based) path of a chain returned by `walk`. */
