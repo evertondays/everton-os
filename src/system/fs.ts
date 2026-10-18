@@ -10,25 +10,31 @@ import {
   workMarkdown,
 } from './content.ts'
 import { mediaSrc, placeholderImage } from './media.ts'
-import { useSettings } from './settings.ts'
+import { settings, useSettings } from './settings.ts'
+import { useStore } from './store.ts'
+import { type UserNode, userFs } from './userFs.ts'
 
-// The virtual file system: a tree generated from the resume data.
+// The virtual file system: a read-only tree generated from the resume data,
+// with the visitor's own files and folders (userFs.ts) laid over it.
 // Every node has a stable `id` (used in paths, the same in every language)
 // and a localized `name` (what the user sees and may also type in the Terminal).
 
-export type FileType = 'resume' | 'markdown' | 'image' | 'link'
+/** `text` is a file the visitor made; the others come from the résumé. */
+export type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text'
 
 export interface FsFile {
   kind: 'file'
   id: string
   name: string
   type: FileType
-  /** Markdown source. */
+  /** Markdown source, or the text of a visitor's file. */
   content?: string
   /** Image URL. */
   src?: string
   /** Link target. */
   url?: string
+  /** Set on the visitor's own nodes, which are the only ones that can change: their key in userFs. */
+  key?: string
 }
 
 export interface FsDir {
@@ -38,12 +44,14 @@ export interface FsDir {
   children: FsNode[]
   /** Hidden from listings of its parent (the Trash). */
   hidden?: boolean
+  key?: string
 }
 
 export type FsNode = FsFile | FsDir
 
 export const RESUME_PATH = '/resume.pdf'
 export const PROJECTS_PATH = '/projects'
+export const DESKTOP_PATH = '/desktop'
 export const TRASH_PATH = '/trash'
 
 const dir = (id: string, name: string, children: FsNode[]): FsDir => ({ kind: 'dir', id, name, children })
@@ -112,16 +120,12 @@ export function buildFs(resume: Resume, locale: Locale): FsDir {
     ]),
   ])
 
-  const trash: FsDir = {
-    ...dir(
-      'trash',
-      t('fs.trash'),
-      resume.meta.trash.map((item) => markdown(item.id, item.content, item.name)),
-    ),
-    hidden: true,
-  }
+  // Starts empty; only what the visitor deletes goes in.
+  const trash: FsDir = { ...dir('trash', t('fs.trash'), []), hidden: true }
 
   return dir('', t('fs.home'), [
+    // Where the files made on the desktop go; it starts empty.
+    dir('desktop', t('fs.desktop'), []),
     experience,
     projects,
     certificates,
@@ -132,9 +136,34 @@ export function buildFs(resume: Resume, locale: Locale): FsDir {
   ])
 }
 
-const cache = new Map<Locale, FsDir>()
+/** Adds the visitor's nodes to a copy of `base`, each under the folder its `parent` path names. */
+function overlay(base: FsDir, nodes: UserNode[]): FsDir {
+  const byParent = new Map<string, UserNode[]>()
+  for (const node of nodes) byParent.set(node.parent, [...(byParent.get(node.parent) ?? []), node])
 
-export function getFs(locale: Locale): FsDir {
+  const toFsNode = (node: UserNode, path: string): FsNode =>
+    node.kind === 'dir'
+      ? attach({ kind: 'dir', id: node.name, name: node.name, children: [], key: node.key }, path)
+      : { kind: 'file', id: node.name, name: node.name, type: 'text', content: node.content ?? '', key: node.key }
+
+  function attach(folder: FsDir, path: string): FsDir {
+    const own = (byParent.get(path) ?? [])
+      .toSorted((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'dir' ? -1 : 1))
+      .map((node) => toFsNode(node, joinPath(path, node.name)))
+    const children = folder.children.map((child) =>
+      child.kind === 'dir' ? attach(child, childPath(path, child)) : child,
+    )
+    return { ...folder, children: [...children, ...own] }
+  }
+
+  return attach(base, '/')
+}
+
+const cache = new Map<Locale, FsDir>()
+const merged = new Map<Locale, { nodes: UserNode[]; root: FsDir }>()
+
+/** The résumé tree alone, without the visitor's nodes. */
+function getBaseFs(locale: Locale): FsDir {
   let root = cache.get(locale)
   if (!root) {
     root = buildFs(getResume(locale), locale)
@@ -143,8 +172,21 @@ export function getFs(locale: Locale): FsDir {
   return root
 }
 
+/** The whole tree, rebuilt only when the visitor's nodes change. */
+export function getFs(locale: Locale): FsDir {
+  const { nodes } = userFs.get()
+  const hit = merged.get(locale)
+  if (hit?.nodes === nodes) return hit.root
+  const root = overlay(getBaseFs(locale), nodes)
+  merged.set(locale, { nodes, root })
+  return root
+}
+
 export function useFs(): FsDir {
-  return getFs(useSettings((s) => s.locale))
+  const locale = useSettings((s) => s.locale)
+  // Subscribes to the visitor's nodes; getFs reads them.
+  useStore(userFs, (state) => state.nodes)
+  return getFs(locale)
 }
 
 /**
@@ -181,8 +223,35 @@ export function chainPath(chain: FsNode[]): string {
     .join('/')}`
 }
 
+/**
+ * `path` as it may be sent to analytics: a path through the visitor's own
+ * files or folders is cut at the first of them, so their names never leave the browser.
+ */
+export function publicPath(path: string): string {
+  const chain = walk(getFs(settings.get().locale), path)
+  const own = chain?.findIndex((node) => node.key !== undefined) ?? -1
+  return chain && own !== -1 ? `${chainPath(chain.slice(0, own))}/*`.replace('//', '/') : path
+}
+
+/** App arguments with their path made public (see publicPath), for the app_opened event. */
+export function publicArgs<T extends { path?: string }>(args?: T): T | undefined {
+  return args?.path ? { ...args, path: publicPath(args.path) } : args
+}
+
+export function joinPath(parent: string, id: string): string {
+  return `${parent === '/' ? '' : parent}/${id}`
+}
+
 export function childPath(parent: string, child: FsNode): string {
-  return `${parent === '/' ? '' : parent}/${child.id}`
+  return joinPath(parent, child.id)
+}
+
+/** The folder part and the last segment of a path, as typed: `a/b/c.txt` → [`a/b`, `c.txt`]. */
+export function splitPath(path: string): [string, string] {
+  const trimmed = path.replace(/\/+$/, '')
+  const slash = trimmed.lastIndexOf('/')
+  if (slash === -1) return ['.', trimmed]
+  return [trimmed.slice(0, slash) || '/', trimmed.slice(slash + 1)]
 }
 
 export function visibleChildren(node: FsDir): FsNode[] {

@@ -55,6 +55,34 @@
   pointer-events: none;
 }
 
+/* The Trash while files are dragged over it: letting go deletes them. */
+.desktop-icon.is-drop-target {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: scale(1.06);
+}
+
+.desktop-icon.is-renaming {
+  z-index: 2;
+  text-shadow: none;
+}
+
+/* A refused file operation on the desktop (DesktopIcons.tsx), just above the panel. */
+.desktop-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  max-width: min(480px, calc(100% - 32px));
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  transform: translateX(-50%);
+}
+
 .desktop-marquee {
   position: absolute;
   border: 1px solid rgba(127, 220, 255, 0.95);

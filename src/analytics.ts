@@ -24,7 +24,10 @@ export type SettingsSource = 'panel' | 'settings' | 'terminal'
 /** Where a contact detail was reached. */
 export type ContactSource = 'contact_app' | 'about' | 'resume'
 
-type FileType = 'resume' | 'markdown' | 'image' | 'link'
+/** Where the visitor created or deleted a file or folder. */
+export type FileSource = 'desktop' | 'files' | 'terminal' | 'editor'
+
+type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text'
 
 type None = Record<never, never>
 
@@ -65,11 +68,19 @@ export interface AnalyticsEvents {
 
   // Files and Viewer
   folder_opened: { path: string; method: 'item' | 'back' | 'up' | 'breadcrumb' | 'sidebar' }
-  file_opened: { path: string; file_type: FileType; source: 'files' | 'terminal' }
+  file_opened: { path: string; file_type: FileType; source: 'files' | 'terminal' | 'desktop_icon' }
   project_resource_opened: { project: string; resource: string; resource_type: FileType | 'project' }
   resume_viewed: { format: 'pdf' | 'page' }
   file_downloaded: { file: string; file_type: FileType; export_method: 'download' | 'print' }
   external_link_clicked: { url: string; source: 'markdown' }
+
+  // The visitor's own files: never their names or what they wrote (paths go through publicPath).
+  file_created: { kind: 'file' | 'folder'; source: FileSource }
+  file_renamed: { kind: 'file' | 'folder' }
+  file_saved: { characters: number }
+  file_deleted: { items: number; permanent: boolean; source: FileSource }
+  file_restored: { items: number }
+  trash_emptied: { items: number }
 
   // Browser
   browser_navigated: { host: string; method: 'address_bar' | 'bookmark' | 'home_tile'; framed: boolean }

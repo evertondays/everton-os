@@ -403,6 +403,16 @@
   color: #5a55e0;
 }
 
+/* The visitor's own text files: blue, like their desktop icon. */
+.file-icon.is-text {
+  color: #2f6fe0;
+  fill: color-mix(in srgb, #2f6fe0 12%, transparent);
+}
+
+:root[data-theme='dark'] .file-icon.is-text {
+  color: #6aa1ff;
+}
+
 .file-thumbnail {
   max-width: 76px;
   border-radius: 4px;
@@ -1070,4 +1080,98 @@
   .browser-bookmarks {
     display: none;
   }
+}
+
+/* Files: refused operations and renaming in place */
+
+.app-error {
+  flex: none;
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rename-field {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+
+/* Text editor */
+
+.editor {
+  overflow: hidden;
+}
+
+.editor-badge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.editor-bar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.editor-bar .input {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.editor-bar.is-warning {
+  background: color-mix(in srgb, #f0a830 16%, var(--surface));
+}
+
+.editor-bar.is-error {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+
+.editor-text {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: 14px/1.6 var(--mono);
+  tab-size: 4;
+  resize: none;
+  outline: none;
+}
+
+.editor-status {
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
 }

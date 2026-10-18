@@ -6,8 +6,8 @@ import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
 import { type AppArgs, type AppDef, type AppId, appList, apps, resumeShortcut } from '../../system/apps.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
-import { RESUME_PATH } from '../../system/fs.ts'
-import { type AppWindow, AppWindowContext, type OS, OSContext, useOS } from '../../system/os.ts'
+import { RESUME_PATH, publicArgs } from '../../system/fs.ts'
+import { type AppWindow, AppWindowContext, type CloseGuard, type OS, OSContext, useOS } from '../../system/os.ts'
 import { settings } from '../../system/settings.ts'
 import { useClock } from '../../system/useClock.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
@@ -28,6 +28,15 @@ interface Screen {
   origin: { x: number; y: number }
 }
 
+/** Asks the close guards of `list`, top screen first, one at a time; false as soon as one wants to stay. */
+async function mayLeave(guards: Map<number, CloseGuard>, list: Screen[]) {
+  for (const screen of list.toReversed()) {
+    const guard = guards.get(screen.key)
+    if (guard && !(await guard())) return false
+  }
+  return true
+}
+
 export default function MobileShell() {
   const wallpaper = useWallpaper()
   const [locked, setLocked] = useState(true)
@@ -40,13 +49,34 @@ export default function MobileShell() {
 
   // The callbacks below need the app on top without being rebuilt on every change.
   const top = useRef<Screen | undefined>(undefined)
+  const stack = useRef<Screen[]>([])
+  // Set by apps that don't want to be left yet (AppWindow.setCloseGuard), by screen key.
+  const [guards] = useState(() => new Map<number, CloseGuard>())
+  // Set while a guard is asking, so more taps on Back or Home don't stack up dialogs.
+  const asking = useRef(false)
 
   useEffect(() => {
     top.current = screens.at(-1)
+    stack.current = screens
   })
 
+  /** Runs `leave` if the guards of `list` let it; one question at a time. */
+  const leaveIfAllowed = useCallback(
+    async (list: Screen[], leave: () => void) => {
+      if (asking.current) return
+      asking.current = true
+      try {
+        if (!(await mayLeave(guards, list))) return
+      } finally {
+        asking.current = false
+      }
+      leave()
+    },
+    [guards],
+  )
+
   const open = useCallback((appId: AppId, source: AppSource, args?: AppArgs) => {
-    track('app_opened', { app: appId, source, ...args })
+    track('app_opened', { app: appId, source, ...publicArgs(args) })
     const screen: Screen = { key: ++sequence.current, appId, args, origin: lastTap.current }
     setScreens((list) => [...list, screen])
   }, [])
@@ -54,18 +84,24 @@ export default function MobileShell() {
   const os = useMemo<OS>(() => ({ shell: 'mobile', open }), [open])
 
   const back = useCallback(() => {
-    if (top.current) track('app_closed', { app: top.current.appId, method: 'back' })
-    setScreens((list) => list.slice(0, -1))
-  }, [])
+    const screen = top.current
+    void leaveIfAllowed(screen ? [screen] : [], () => {
+      if (screen) track('app_closed', { app: screen.appId, method: 'back' })
+      setScreens((list) => list.slice(0, -1))
+    })
+  }, [leaveIfAllowed])
 
   const goHome = useCallback(() => {
-    if (top.current) track('app_closed', { app: top.current.appId, method: 'home' })
-    setClosing(true)
-    window.setTimeout(() => {
-      setScreens([])
-      setClosing(false)
-    }, CLOSE_ANIMATION)
-  }, [])
+    const screen = top.current
+    void leaveIfAllowed(stack.current, () => {
+      if (screen) track('app_closed', { app: screen.appId, method: 'home' })
+      setClosing(true)
+      window.setTimeout(() => {
+        setScreens([])
+        setClosing(false)
+      }, CLOSE_ANIMATION)
+    })
+  }, [leaveIfAllowed])
 
   const unlock = useCallback(() => {
     setLocked(false)
@@ -96,6 +132,7 @@ export default function MobileShell() {
             closing={closing}
             onBack={index > 0 ? back : undefined}
             onClose={index > 0 ? back : goHome}
+            guards={guards}
           />
         ))}
         {screens.length > 0 && <HomeBar onHome={goHome} />}
@@ -261,6 +298,7 @@ function AppScreen({
   closing,
   onBack,
   onClose,
+  guards,
 }: {
   screen: Screen
   active: boolean
@@ -268,11 +306,25 @@ function AppScreen({
   /** Present when there is a screen underneath to go back to. */
   onBack?: () => void
   onClose(): void
+  guards: Map<number, CloseGuard>
 }) {
   const t = useT()
   const app = apps[screen.appId]
   const [title, setTitle] = useState<string | null>(null)
-  const appWindow = useMemo<AppWindow>(() => ({ setTitle, close: onClose }), [onClose])
+  const { key } = screen
+  const appWindow = useMemo<AppWindow>(
+    () => ({
+      setTitle,
+      close: onClose,
+      setCloseGuard: (guard) => {
+        if (guard) guards.set(key, guard)
+        else guards.delete(key)
+      },
+    }),
+    [onClose, guards, key],
+  )
+
+  useEffect(() => () => void guards.delete(key), [guards, key])
   const App = app.component
 
   return (
