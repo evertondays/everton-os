@@ -8,6 +8,7 @@ import {
   Images,
   type LucideIcon,
   Mail,
+  NotebookPen,
   Settings,
   Terminal,
   Trash,
@@ -28,9 +29,10 @@ export type AppId =
   | 'browser'
   | 'settings'
   | 'trash'
+  | 'editor'
 
 export interface AppArgs {
-  /** File system path (Files, Viewer). */
+  /** File system path (Files, Viewer, Editor). */
   path?: string
   /** Address to load (Browser). */
   url?: string
@@ -162,6 +164,21 @@ export const apps: Record<AppId, AppDef> = {
     height: 460,
     single: true,
   },
+  editor: {
+    id: 'editor',
+    name: 'app.editor',
+    icon: NotebookPen,
+    tint: ['#ffd36b', '#e89a1c'],
+    component: lazy(() => import('../apps/Editor.tsx')),
+    width: 680,
+    height: 520,
+  },
+}
+
+/** How the visitor's own files and folders look as desktop icons: a text file is a white page with blue writing. */
+export const userNodeIcons: Record<'file' | 'dir', Pick<AppDef, 'icon' | 'tint'> & { ink?: string }> = {
+  file: { icon: FileText, tint: ['#ffffff', '#dde4ee'], ink: '#2f6fe0' },
+  dir: { icon: Folder, tint: ['#4fc3ff', '#1589e0'] },
 }
 
 /** The shortcut to the résumé file that both shells keep one click away. */
@@ -176,6 +193,7 @@ export const appList: AppDef[] = [
   apps.about,
   apps.files,
   apps.viewer,
+  apps.editor,
   apps.terminal,
   apps.gallery,
   apps.browser,
