@@ -2,14 +2,16 @@ import { createLucideIcon } from 'lucide-react'
 import { type AppDef, apps } from '../system/apps.ts'
 import { useTrashFull } from '../system/fileOps.ts'
 
-/** Lucide's trash can without its lid, with paper sticking out: the Trash when it has something in it. */
+/**
+ * The Trash when it has something in it: Lucide's trash can stuffed so full
+ * that its sides and lid bulge.
+ */
 const TrashFull = createLucideIcon('trash-full', [
-  ['path', { d: 'M10 13v5', key: 'line-left' }],
-  ['path', { d: 'M14 13v5', key: 'line-right' }],
-  ['path', { d: 'M19 9v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9', key: 'body' }],
-  ['path', { d: 'M3 9h18', key: 'rim' }],
-  ['path', { d: 'M7 9l1.5-5.5 4 1.2L11 9', key: 'paper-left' }],
-  ['path', { d: 'M13.5 9 16 3l3 1.6L17.5 9', key: 'paper-right' }],
+  ['path', { d: 'M5 6C2.9 10.3 2.9 15.7 4.8 20A2.6 2.6 0 0 0 7.2 22h9.6a2.6 2.6 0 0 0 2.4-2c1.9-4.3 1.9-9.7-.2-14', key: 'body' }],
+  ['path', { d: 'M3 6c3.5-1.2 14.5-1.2 18 0', key: 'lid' }],
+  ['path', { d: 'M8.5 5V3.8A1.8 1.8 0 0 1 10.3 2h3.4a1.8 1.8 0 0 1 1.8 1.8V5', key: 'handle' }],
+  ['path', { d: 'M9.6 10.5c-.6 2.4-.6 5.1 0 7.5', key: 'line-left' }],
+  ['path', { d: 'M14.4 10.5c.6 2.4.6 5.1 0 7.5', key: 'line-right' }],
 ])
 
 /** The rounded gradient tile used for app icons in both shells. `ink` colors the glyph (white by default). */
