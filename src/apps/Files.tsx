@@ -1,7 +1,9 @@
 import {
   ArrowLeft,
   ArrowUp,
+  Check,
   ChevronRight,
+  Copy,
   ExternalLink,
   FilePlus,
   FileText,
@@ -17,10 +19,10 @@ import {
   Trash,
   Trash2,
 } from 'lucide-react'
-import { type KeyboardEvent, type MouseEvent, useEffect, useState } from 'react'
+import { type FormEvent, type KeyboardEvent, type MouseEvent, useEffect, useState } from 'react'
 import { type AnalyticsEvents, track } from '../analytics.ts'
 import { ContextMenu, type MenuItem, type MenuState } from '../components/ContextMenu.tsx'
-import { RenameField } from '../components/NameField.tsx'
+import { NameField, RenameField } from '../components/NameField.tsx'
 import { useT } from '../i18n/index.ts'
 import type { AppProps } from '../system/apps.ts'
 import { confirmDialog } from '../system/dialog.ts'
@@ -53,6 +55,9 @@ import { isInside } from '../system/userFs.ts'
 
 type FolderMethod = AnalyticsEvents['folder_opened']['method']
 
+/** How long the copy button shows it worked (ms). */
+const COPIED_TIMEOUT = 1500
+
 function NodeIcon({ node, size }: { node: FsNode; size: number }) {
   if (node.kind === 'dir') return <Folder className="file-icon is-folder" size={size} strokeWidth={1.5} />
   if (node.type === 'image') return <img className="file-thumbnail" src={node.src} alt="" style={{ height: size }} />
@@ -73,6 +78,9 @@ export default function Files({ args }: AppProps) {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** The address bar shows the path as text, to copy or type over, instead of the breadcrumb. */
+  const [editingPath, setEditingPath] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Fall back to the home folder if the path stops resolving.
   const found = walk(fs, path)
@@ -91,12 +99,47 @@ export default function Files({ args }: AppProps) {
     appWindow.setTitle(current.name)
   }, [appWindow, current.name])
 
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), COPIED_TIMEOUT)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
   const go = (to: string, method: FolderMethod) => {
     track('folder_opened', { path: publicPath(to), method })
     setHistory((list) => [...list, here])
     setPath(to)
     setSelected(null)
     setRenaming(null)
+  }
+
+  /** Goes to the path typed in the address bar: a folder opens here, a file in its app. */
+  const submitPath = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const typed = String(new FormData(event.currentTarget).get('path') ?? '').trim()
+    const target = walk(fs, typed || '/', here)
+    if (!target) {
+      setError(t('fs.error.notFound', { name: typed }))
+      return
+    }
+    setError(null)
+    setEditingPath(false)
+    const node = target.at(-1)!
+    const to = chainPath(target)
+    if (node.kind === 'dir') {
+      if (to !== here) go(to, 'address_bar')
+    } else {
+      openNode(os, node, to, 'files')
+    }
+  }
+
+  const copyPath = async () => {
+    try {
+      await navigator.clipboard.writeText(here)
+      setCopied(true)
+    } catch {
+      // Clipboard blocked: the path is still selected in the field for Ctrl+C.
+    }
   }
 
   const goBack = () => {
@@ -261,19 +304,56 @@ export default function Files({ args }: AppProps) {
         >
           <ArrowUp size={17} />
         </button>
-        <nav className="breadcrumb" aria-label={t('files.path')}>
-          {chain.map((node, index) => (
-            <span key={index}>
-              {index > 0 && <ChevronRight size={14} />}
-              <button
-                onClick={() => go(chainPath(chain.slice(0, index + 1)), 'breadcrumb')}
-                disabled={index === chain.length - 1}
-              >
-                {node.name}
-              </button>
-            </span>
-          ))}
-        </nav>
+        {editingPath ? (
+          <form className="address-bar" onSubmit={submitPath}>
+            <NameField
+              name="path"
+              className="address-input"
+              defaultValue={here}
+              keepExtension={false}
+              aria-label={t('files.path')}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setEditingPath(false)
+              }}
+              onBlur={() => setEditingPath(false)}
+            />
+            <button
+              type="button"
+              className="icon-button"
+              // Keep the focus in the field, so copying doesn't close the bar.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={copyPath}
+              aria-label={t('files.copyPath')}
+              title={copied ? t('files.copied') : t('files.copyPath')}
+            >
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+            </button>
+          </form>
+        ) : (
+          // A click on the current folder or the empty part of the bar shows the path as text, like a file manager.
+          <nav
+            className="breadcrumb"
+            aria-label={t('files.path')}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setEditingPath(true)
+            }}
+          >
+            {chain.map((node, index) => {
+              const last = index === chain.length - 1
+              return (
+                <span key={index}>
+                  {index > 0 && <ChevronRight size={14} />}
+                  <button
+                    aria-current={last ? 'page' : undefined}
+                    onClick={() => (last ? setEditingPath(true) : go(chainPath(chain.slice(0, index + 1)), 'breadcrumb'))}
+                  >
+                    {node.name}
+                  </button>
+                </span>
+              )
+            })}
+          </nav>
+        )}
         {inTrash ? (
           <>
             {ownSelected && (

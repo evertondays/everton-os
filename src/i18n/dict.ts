@@ -104,6 +104,8 @@ const pt = {
   'files.up': 'Pasta acima',
   'files.path': 'Caminho',
   'files.empty': 'Esta pasta está vazia.',
+  'files.copyPath': 'Copiar caminho',
+  'files.copied': 'Copiado!',
 
   'editor.save': 'Salvar',
   'editor.saveAs': 'Salvar como',
@@ -296,6 +298,8 @@ const en: Record<TKey, string> = {
   'files.up': 'Parent folder',
   'files.path': 'Path',
   'files.empty': 'This folder is empty.',
+  'files.copyPath': 'Copy path',
+  'files.copied': 'Copied!',
 
   'editor.save': 'Save',
   'editor.saveAs': 'Save as',

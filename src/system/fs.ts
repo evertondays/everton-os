@@ -196,7 +196,9 @@ export function useFs(): FsDir {
  */
 export function walk(root: FsDir, path: string, cwd = '/'): FsNode[] | null {
   const chain: FsNode[] = [root]
-  const segments = (path.startsWith('/') ? path : `${cwd}/${path}`).split('/').filter(Boolean)
+  // `~` is the home folder, as the Terminal's prompt shows it.
+  const home = path === '~' || path.startsWith('~/') ? path.slice(1) || '/' : path
+  const segments = (home.startsWith('/') ? home : `${cwd}/${home}`).split('/').filter(Boolean)
   for (const segment of segments) {
     if (segment === '.') continue
     if (segment === '..') {

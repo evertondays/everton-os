@@ -308,14 +308,48 @@
   color: var(--text-dim);
 }
 
-.breadcrumb button:disabled {
+/* The current folder: clicking it, or the empty bar after it, shows the path as text. */
+.breadcrumb button[aria-current='page'] {
   color: var(--text);
   font-weight: 600;
-  opacity: 1;
 }
 
-.breadcrumb button:not(:disabled):hover {
+.breadcrumb,
+.breadcrumb button[aria-current='page'] {
+  cursor: text;
+}
+
+.breadcrumb button:hover {
   background: var(--hover);
+}
+
+.address-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  padding-right: 2px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.address-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 13px var(--mono);
+  outline: none;
+}
+
+.address-bar .icon-button {
+  width: 28px;
+  height: 28px;
 }
 
 .files-body {

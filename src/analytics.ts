@@ -67,7 +67,7 @@ export interface AnalyticsEvents {
   portfolio_cta_selected: { destination: 'resume' | 'projects' | 'contact' }
 
   // Files and Viewer
-  folder_opened: { path: string; method: 'item' | 'back' | 'up' | 'breadcrumb' | 'sidebar' }
+  folder_opened: { path: string; method: 'item' | 'back' | 'up' | 'breadcrumb' | 'sidebar' | 'address_bar' }
   file_opened: { path: string; file_type: FileType; source: 'files' | 'terminal' | 'desktop_icon' }
   project_resource_opened: { project: string; resource: string; resource_type: FileType | 'project' }
   resume_viewed: { format: 'pdf' | 'page' }
