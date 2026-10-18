@@ -4,9 +4,11 @@ import { useResume } from '../data/resume.ts'
 import { useLocale, useT } from '../i18n/index.ts'
 import { appList } from '../system/apps.ts'
 import { resumeText } from '../system/content.ts'
-import { type FsNode, chainPath, useFs, visibleChildren, walk } from '../system/fs.ts'
+import { createNode, fsErrorMessage, isInTrash, isUserNode, purgeNodes, touchNode, trashNodes } from '../system/fileOps.ts'
+import { type FsNode, chainPath, getFs, splitPath, useFs, visibleChildren, walk } from '../system/fs.ts'
 import { openNode, useAppWindow, useOS } from '../system/os.ts'
 import { setLocale, setTheme } from '../system/settings.ts'
+import { FsError } from '../system/userFs.ts'
 
 interface Entry {
   id: number
@@ -65,6 +67,28 @@ export default function TerminalApp() {
     </span>
   )
 
+  // Commands that change files read the tree afresh: `fs` is as it was when the line was typed.
+  const tree = () => getFs(locale)
+  const operand = (args: string[]) => args.filter((arg) => !arg.startsWith('-')).join(' ')
+  const hasFlag = (args: string[], flag: string) => args.some((arg) => /^-[a-z]+$/i.test(arg) && arg.includes(flag))
+
+  /** Runs a file operation; if it's refused, the reason is the command's output. */
+  const attempt = (command: string, action: () => ReactNode | void) => {
+    try {
+      return action()
+    } catch (caught) {
+      return `${command}: ${fsErrorMessage(t, caught)}`
+    }
+  }
+
+  /** The canonical folder a new `target` goes in, and the name it gets there. */
+  const parentOf = (target: string): [string, string] => {
+    const [folder, name] = splitPath(target)
+    const chain = walk(tree(), folder, cwd)
+    if (!chain) throw new FsError('notFound', folder)
+    return [chainPath(chain), name]
+  }
+
   const commands: Record<string, Command> = {
     help: () => t('terminal.help'),
     whoami: () => `${resume.basics.name} — ${resume.basics.label}\n${resume.basics.summary}`,
@@ -97,7 +121,11 @@ export default function TerminalApp() {
     },
     open: (args) => {
       const target = args.join(' ')
-      if (!target) return t('terminal.usage', { usage: 'open <app|file>' })
+      // Nothing to open: the file manager, here.
+      if (!target) {
+        os.open('files', 'terminal', { path: cwd })
+        return
+      }
       const app = appList.find((item) => item.id === target || plain(t(item.name)) === plain(target))
       if (app) {
         os.open(app.id, 'terminal')
@@ -130,7 +158,71 @@ export default function TerminalApp() {
     clear: () => setEntries([]),
     exit: () => appWindow.close(),
     sudo: () => t('terminal.sudo', { user }),
-    rm: () => t('terminal.rm'),
+    mkdir: (args) => {
+      const target = operand(args)
+      if (!target) return t('terminal.usage', { usage: 'mkdir [-p] <folder>' })
+      return attempt('mkdir', () => {
+        if (!hasFlag(args, 'p')) {
+          const [parent, name] = parentOf(target)
+          createNode(parent, 'dir', name, 'terminal', { unique: false })
+          return
+        }
+        // -p: every missing folder along the way, and no complaint about the ones that exist.
+        let at = target.startsWith('/') ? '/' : cwd
+        for (const segment of target.split('/').filter(Boolean)) {
+          const existing = walk(tree(), segment, at)
+          if (!existing) at = createNode(at, 'dir', segment, 'terminal', { unique: false }).path
+          else if (existing.at(-1)!.kind !== 'dir') throw new FsError('notDir', segment)
+          else at = chainPath(existing)
+        }
+      })
+    },
+    touch: (args) => {
+      const target = operand(args)
+      if (!target) return t('terminal.usage', { usage: 'touch <file>' })
+      return attempt('touch', () => {
+        const existing = walk(tree(), target, cwd)
+        if (existing) {
+          touchNode(chainPath(existing))
+          return
+        }
+        const [parent, name] = parentOf(target)
+        createNode(parent, 'file', name, 'terminal', { unique: false })
+      })
+    },
+    editor: (args) => {
+      const target = args.join(' ')
+      if (!target) {
+        os.open('editor', 'terminal')
+        return
+      }
+      return attempt('editor', () => {
+        // Like `nano new.txt`: a file that doesn't exist yet is created.
+        let chain = walk(tree(), target, cwd)
+        if (!chain) {
+          const [parent, name] = parentOf(target)
+          chain = walk(tree(), createNode(parent, 'file', name, 'terminal', { unique: false }).path)!
+        }
+        const node = chain.at(-1)!
+        if (node.kind === 'dir') return t('terminal.isDir', { name: target })
+        if (node.type !== 'text' && node.type !== 'markdown') return t('terminal.notText', { name: node.name })
+        os.open('editor', 'terminal', { path: chainPath(chain) })
+      })
+    },
+    rm: (args) => {
+      const target = operand(args)
+      if (!target) return t('terminal.usage', { usage: 'rm [-r] <path>' })
+      const chain = walk(tree(), target, cwd)
+      if (!chain) return t('terminal.noSuchFile', { name: target })
+      const node = chain.at(-1)!
+      if (!isUserNode(node)) return t('terminal.rm')
+      if (node.kind === 'dir' && !hasFlag(args, 'r')) return t('terminal.rmDir', { name: target })
+      const path = chainPath(chain)
+      // Out of the Trash it's gone for good; anywhere else it goes to the Trash.
+      return attempt('rm', () =>
+        isInTrash(path) ? purgeNodes([path], 'terminal') : trashNodes([path], 'terminal'),
+      )
+    },
   }
   commands.contact = commands.contato
 

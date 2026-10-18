@@ -1,6 +1,7 @@
 import { type AppSource, track } from '../../analytics.ts'
 import { type AppArgs, type AppId, apps } from '../../system/apps.ts'
 import { createStore } from '../../system/store.ts'
+import { publicArgs } from '../../system/fs.ts'
 import type { SnapSide, SnapZone } from './snap.ts'
 import type { WindowHandle } from './useWindow.ts'
 
@@ -45,7 +46,7 @@ export function openWindow(appId: AppId, source: AppSource, args?: AppArgs) {
     .windows.find(
       (win) => win.appId === appId && (apps[appId].single || (args?.path !== undefined && win.args?.path === args.path)),
     )
-  track('app_opened', { app: appId, source, ...args, already_open: existing !== undefined })
+  track('app_opened', { app: appId, source, ...publicArgs(args), already_open: existing !== undefined })
   if (existing) {
     activateWindow(existing.id)
     return

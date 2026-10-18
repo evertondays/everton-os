@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { track } from '../../analytics.ts'
 import { useT } from '../../i18n/index.ts'
@@ -37,12 +37,15 @@ export function Window({ win }: { win: Win }) {
   const t = useT()
   const app = apps[win.appId]
   const { id } = win
+  const closeGuard = useRef<(() => boolean) | null>(null)
 
   const { container, handle } = useWindow({
     title: win.title ?? t(app.name),
     ...placement(win),
     bottom: PANEL_HEIGHT,
-    onClose: () => closeWindow(id),
+    onClose: () => {
+      if (!closeGuard.current || closeGuard.current()) closeWindow(id)
+    },
     onFocus: () => windowFocused(id),
     onBlur: () => windowBlurred(id),
     onMinimize: () => windowMinimized(id, true),
@@ -57,7 +60,15 @@ export function Window({ win }: { win: Win }) {
   useEffect(() => registerWindow(id, () => handle.current), [id, handle])
 
   const appWindow = useMemo<AppWindow>(
-    () => ({ setTitle: (title) => setWindowTitle(id, title), close: () => closeWindow(id) }),
+    () => ({
+      setTitle: (title) => setWindowTitle(id, title),
+      close: () => {
+        if (!closeGuard.current || closeGuard.current()) closeWindow(id)
+      },
+      setCloseGuard: (guard) => {
+        closeGuard.current = guard
+      },
+    }),
     [id],
   )
 

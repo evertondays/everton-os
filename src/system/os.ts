@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import { type AppSource, track } from '../analytics.ts'
 import type { AppArgs, AppId } from './apps.ts'
-import type { FsNode } from './fs.ts'
+import { type FsNode, publicPath } from './fs.ts'
 
 // What an app can ask of the system it runs in. Each shell (desktop, mobile)
 // provides its own implementation, so the apps never know which one they're in
@@ -27,19 +27,25 @@ export function useOS(): OS {
 export interface AppWindow {
   setTitle(title: string): void
   close(): void
+  /**
+   * While set, closing the window or screen asks `guard` first, and it stays
+   * open if `guard` returns false (unsaved changes, say). Null removes it.
+   */
+  setCloseGuard(guard: (() => boolean) | null): void
 }
 
-export const AppWindowContext = createContext<AppWindow>({ setTitle() {}, close() {} })
+export const AppWindowContext = createContext<AppWindow>({ setTitle() {}, close() {}, setCloseGuard() {} })
 
 export const useAppWindow = () => useContext(AppWindowContext)
 
 /** Opens a file system node with the app that handles it. */
-export function openNode(os: OS, node: FsNode, path: string, source: 'files' | 'terminal') {
+export function openNode(os: OS, node: FsNode, path: string, source: 'files' | 'terminal' | 'desktop_icon') {
   if (node.kind === 'dir') {
     os.open('files', source, { path })
     return
   }
-  track('file_opened', { path, file_type: node.type, source })
+  track('file_opened', { path: publicPath(path), file_type: node.type, source })
   if (node.type === 'link') os.open('browser', source, { url: node.url })
+  else if (node.type === 'text') os.open('editor', source, { path })
   else os.open('viewer', source, { path })
 }
