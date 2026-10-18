@@ -29,6 +29,7 @@ const pt = {
   'fs.error.invalidName': 'Nome inválido: "{name}". Use um nome sem "/".',
   'fs.error.quota': 'O armazenamento do navegador está cheio.',
   'fs.error.tooLarge': '"{name}" é grande demais para salvar.',
+  'fs.error.intoItself': 'Não é possível mover "{name}" para dentro dela mesma.',
 
   'action.open': 'Abrir',
   'action.newFile': 'Novo arquivo de texto',
@@ -148,6 +149,7 @@ const pt = {
   'terminal.rm': 'rm: permissão negada. Este currículo é somente leitura.',
   'terminal.rmDir': 'rm: {name}: é uma pasta (use rm -r)',
   'terminal.notText': 'editor: {name}: não é um arquivo de texto. Use "open {name}".',
+  'terminal.shortcut': '{name}: é um atalho. Use "open {name}" para abrir.',
 
   'gallery.empty': 'Nenhuma imagem por aqui ainda.',
   'gallery.previous': 'Imagem anterior',
@@ -223,6 +225,7 @@ const en: Record<TKey, string> = {
   'fs.error.invalidName': 'Invalid name: "{name}". Use a name without "/".',
   'fs.error.quota': "The browser's storage is full.",
   'fs.error.tooLarge': '"{name}" is too large to save.',
+  'fs.error.intoItself': "Can't move \"{name}\" into itself.",
 
   'action.open': 'Open',
   'action.newFile': 'New text file',
@@ -342,6 +345,7 @@ const en: Record<TKey, string> = {
   'terminal.rm': 'rm: permission denied. This résumé is read-only.',
   'terminal.rmDir': 'rm: {name}: is a folder (use rm -r)',
   'terminal.notText': 'editor: {name}: not a text file. Use "open {name}".',
+  'terminal.shortcut': '{name}: a shortcut. Use "open {name}" to open it.',
 
   'gallery.empty': 'No images here yet.',
   'gallery.previous': 'Previous image',

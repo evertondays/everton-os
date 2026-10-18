@@ -1,7 +1,8 @@
 import { createContext, useContext } from 'react'
 import { type AppSource, track } from '../analytics.ts'
 import type { AppArgs, AppId } from './apps.ts'
-import { type FsNode, publicPath } from './fs.ts'
+import { type FsNode, chainPath, getFs, publicPath, shortcutTarget } from './fs.ts'
+import { settings } from './settings.ts'
 
 // What an app can ask of the system it runs in. Each shell (desktop, mobile)
 // provides its own implementation, so the apps never know which one they're in
@@ -45,6 +46,13 @@ export const useAppWindow = () => useContext(AppWindowContext)
 export function openNode(os: OS, node: FsNode, path: string, source: 'files' | 'terminal' | 'desktop_icon') {
   if (node.kind === 'dir') {
     os.open('files', source, { path })
+    return
+  }
+  // A shortcut opens what it points to, from whatever folder it's in.
+  if (node.type === 'shortcut') {
+    const target = shortcutTarget(getFs(settings.get().locale), node)
+    if (target && 'app' in target) os.open(target.app, source)
+    else if (target) openNode(os, target.chain.at(-1)!, chainPath(target.chain), source)
     return
   }
   track('file_opened', { path: publicPath(path), file_type: node.type, source })

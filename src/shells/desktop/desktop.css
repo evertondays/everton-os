@@ -537,6 +537,16 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Focused from the start (Login.tsx): no ring until the visitor uses Tab, then a white one that fits the card. */
+.login-user:focus-visible {
+  outline: none;
+}
+
+.login.is-tabbing .login-user:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
+}
+
 .login-user .avatar {
   margin-bottom: 12px;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85);

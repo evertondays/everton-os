@@ -19,19 +19,25 @@ import {
   Trash,
   Trash2,
 } from 'lucide-react'
-import { type FormEvent, type KeyboardEvent, type MouseEvent, useEffect, useState } from 'react'
+import { type DragEvent, type FormEvent, type KeyboardEvent, type MouseEvent, useEffect, useState } from 'react'
 import { type AnalyticsEvents, track } from '../analytics.ts'
+import { AppIcon } from '../components/AppIcon.tsx'
 import { ContextMenu, type MenuItem, type MenuState } from '../components/ContextMenu.tsx'
 import { NameField, RenameField } from '../components/NameField.tsx'
 import { useT } from '../i18n/index.ts'
-import type { AppProps } from '../system/apps.ts'
+import { type AppProps, shortcutIcons } from '../system/apps.ts'
 import { confirmDialog } from '../system/dialog.ts'
 import {
+  FILE_DRAG_TYPE,
   canCreateIn,
+  canModify,
   createNode,
+  draggedPaths,
   emptyTrash,
   fsErrorMessage,
+  isFileDrag,
   isUserNode,
+  moveNodes,
   purgeNodes,
   renameNode,
   restoreNodes,
@@ -45,6 +51,7 @@ import {
   chainPath,
   childPath,
   publicPath,
+  shortcutTarget,
   splitPath,
   useFs,
   visibleChildren,
@@ -64,6 +71,7 @@ function NodeIcon({ node, size }: { node: FsNode; size: number }) {
   if (node.type === 'resume') return <FileUser className="file-icon is-resume" size={size} strokeWidth={1.5} />
   if (node.type === 'link') return <Globe className="file-icon is-link" size={size} strokeWidth={1.5} />
   if (node.type === 'text') return <FileText className="file-icon is-text" size={size} strokeWidth={1.5} />
+  if (node.shortcut) return <AppIcon app={shortcutIcons[node.shortcut]} size={size - 6} />
   return <FileText className="file-icon" size={size} strokeWidth={1.5} />
 }
 
@@ -81,6 +89,8 @@ export default function Files({ args }: AppProps) {
   /** The address bar shows the path as text, to copy or type over, instead of the breadcrumb. */
   const [editingPath, setEditingPath] = useState(false)
   const [copied, setCopied] = useState(false)
+  /** The folder that files being dragged would go into if dropped now. */
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
 
   // Fall back to the home folder if the path stops resolving.
   const found = walk(fs, path)
@@ -132,6 +142,34 @@ export default function Files({ args }: AppProps) {
       openNode(os, node, to, 'files')
     }
   }
+
+  /** The folder files dropped on `node` go into: the folder itself, or the one a shortcut points to. */
+  const folderOf = (node: FsNode): string | null => {
+    if (node.kind === 'dir') return childPath(here, node)
+    const target = shortcutTarget(fs, node)
+    return target && 'chain' in target && target.chain.at(-1)!.kind === 'dir' ? chainPath(target.chain) : null
+  }
+
+  /** Drop handlers that put files dragged from a Files window into `folder`; the Trash deletes them. */
+  const dropInto = (folder: string) => ({
+    onDragOver: (event: DragEvent) => {
+      if (!isFileDrag(event.dataTransfer)) return
+      event.preventDefault()
+      event.stopPropagation()
+      event.dataTransfer.dropEffect = 'move'
+      setDropTarget(folder)
+    },
+    onDragLeave: () => setDropTarget((target) => (target === folder ? null : target)),
+    onDrop: (event: DragEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setDropTarget(null)
+      const paths = draggedPaths(event.dataTransfer)
+      if (paths.length === 0) return
+      attempt(() => (folder === TRASH_PATH ? trashNodes(paths, 'files') : moveNodes(paths, folder, 'files')))
+      setSelected(null)
+    },
+  })
 
   const copyPath = async () => {
     try {
@@ -229,7 +267,7 @@ export default function Files({ args }: AppProps) {
   }
 
   const itemActions = (node: FsNode): MenuItem[] => {
-    const own = isUserNode(node)
+    const own = canModify(node)
     if (inTrash) {
       return own
         ? [
@@ -265,7 +303,7 @@ export default function Files({ args }: AppProps) {
   }
 
   const onGridKeyDown = (event: KeyboardEvent) => {
-    if (!selectedNode || !isUserNode(selectedNode) || renaming) return
+    if (!selectedNode || !canModify(selectedNode) || renaming) return
     if (event.key === 'Delete') {
       event.preventDefault()
       if (inTrash || event.shiftKey) purge(selectedNode)
@@ -288,7 +326,7 @@ export default function Files({ args }: AppProps) {
     { path: TRASH_PATH, name: t('fs.trash'), icon: Trash },
   ]
 
-  const ownSelected = selectedNode && isUserNode(selectedNode)
+  const ownSelected = selectedNode && canModify(selectedNode)
 
   return (
     <div className="app files">
@@ -345,7 +383,9 @@ export default function Files({ args }: AppProps) {
                   {index > 0 && <ChevronRight size={14} />}
                   <button
                     aria-current={last ? 'page' : undefined}
+                    className={dropTarget === chainPath(chain.slice(0, index + 1)) ? 'is-drop-target' : undefined}
                     onClick={() => (last ? setEditingPath(true) : go(chainPath(chain.slice(0, index + 1)), 'breadcrumb'))}
+                    {...(last ? {} : dropInto(chainPath(chain.slice(0, index + 1))))}
                   >
                     {node.name}
                   </button>
@@ -396,8 +436,9 @@ export default function Files({ args }: AppProps) {
             {places.map((place) => (
               <button
                 key={place.path}
-                className={place.path === here ? 'is-active' : ''}
+                className={`${place.path === here ? 'is-active' : ''}${dropTarget === place.path ? ' is-drop-target' : ''}`}
                 onClick={() => place.path !== here && go(place.path, 'sidebar')}
+                {...dropInto(place.path)}
               >
                 <place.icon size={16} />
                 {place.name}
@@ -407,12 +448,17 @@ export default function Files({ args }: AppProps) {
         )}
 
         {items.length === 0 ? (
-          <p className="app-empty" onContextMenu={(event) => openMenu(event, folderActions())}>
+          <p
+            className={`app-empty${dropTarget === here ? ' is-drop-target' : ''}`}
+            onContextMenu={(event) => openMenu(event, folderActions())}
+            {...dropInto(here)}
+          >
             {t('files.empty')}
           </p>
         ) : (
           <ul
-            className="files-grid"
+            className={`files-grid${dropTarget === here ? ' is-drop-target' : ''}`}
+            {...dropInto(here)}
             onClick={(event) => {
               if (event.target === event.currentTarget) setSelected(null)
             }}
@@ -432,7 +478,17 @@ export default function Files({ args }: AppProps) {
                   </div>
                 ) : (
                   <button
-                    className={`file${selected === node.id ? ' is-selected' : ''}`}
+                    className={`file${selected === node.id ? ' is-selected' : ''}${
+                      dropTarget !== null && dropTarget === folderOf(node) ? ' is-drop-target' : ''
+                    }`}
+                    // The visitor's own files and folders can be dragged into folders, here, in another window or on the desktop.
+                    draggable={!mobile && isUserNode(node)}
+                    onDragStart={(event) => {
+                      setSelected(node.id)
+                      event.dataTransfer.setData(FILE_DRAG_TYPE, JSON.stringify([childPath(here, node)]))
+                      event.dataTransfer.effectAllowed = 'move'
+                    }}
+                    {...(folderOf(node) ? dropInto(folderOf(node)!) : {})}
                     // A tap opens on the phone; on the desktop a click selects and a double click opens.
                     onClick={() => (mobile ? open(node) : setSelected(node.id))}
                     onDoubleClick={() => !mobile && open(node)}

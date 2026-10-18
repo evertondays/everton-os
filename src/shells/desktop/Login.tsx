@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { track } from '../../analytics.ts'
 import { Avatar } from '../../components/Avatar.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
@@ -15,6 +16,10 @@ export function Login({ onEnter }: { onEnter(): void }) {
   const now = useClock()
   const wallpaper = useWallpaper()
   const { basics } = useResume()
+  // The card has focus from the start so Enter logs in, but skipping the boot
+  // with a key makes the browser draw its focus ring around it. Show the ring
+  // only once the visitor moves around with Tab.
+  const [tabbing, setTabbing] = useState(false)
 
   const enterPortfolio = () => {
     track('portfolio_entered', { entry_point: 'desktop_login' })
@@ -23,7 +28,13 @@ export function Login({ onEnter }: { onEnter(): void }) {
   }
 
   return (
-    <div className="login" style={{ backgroundImage: wallpaper.css }}>
+    <div
+      className={`login${tabbing ? ' is-tabbing' : ''}`}
+      style={{ backgroundImage: wallpaper.css }}
+      onKeyDown={(event) => {
+        if (event.key === 'Tab') setTabbing(true)
+      }}
+    >
       <div className="login-shade">
         <time className="login-clock" dateTime={now.toISOString()}>
           <span>{formatTime(now, locale)}</span>

@@ -27,7 +27,7 @@ export type ContactSource = 'contact_app' | 'about' | 'resume'
 /** Where the visitor created or deleted a file or folder. */
 export type FileSource = 'desktop' | 'files' | 'terminal' | 'editor'
 
-type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text'
+type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text' | 'shortcut'
 
 type None = Record<never, never>
 
@@ -77,6 +77,7 @@ export interface AnalyticsEvents {
   // The visitor's own files: never their names or what they wrote (paths go through publicPath).
   file_created: { kind: 'file' | 'folder'; source: FileSource }
   file_renamed: { kind: 'file' | 'folder' }
+  file_moved: { items: number; source: FileSource }
   file_saved: { characters: number }
   file_deleted: { items: number; permanent: boolean; source: FileSource }
   file_restored: { items: number }
