@@ -16,21 +16,21 @@
 .desktop-icons {
   position: absolute;
   inset: 0 0 48px;
-  display: flex;
-  flex-flow: column wrap;
-  align-content: flex-start;
-  gap: 6px;
-  padding: 18px 14px;
+  /* Pointer drags select and move icons; don't let the browser pan or select text. */
+  touch-action: none;
 }
 
+/* Positioned on a 108×100px grid by DesktopIcons.tsx, inset 4px so neighbours keep a gap. */
 .desktop-icon {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
-  width: 104px;
-  padding: 10px 6px 8px;
-  border-radius: 10px;
+  width: 100px;
+  padding: 8px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   color: #fff;
   font-size: 13px;
   font-weight: 550;
@@ -45,7 +45,112 @@
 }
 
 .desktop-icon.is-selected {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.desktop-icon.is-dragging {
+  z-index: 1;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.desktop-marquee {
+  position: absolute;
+  border: 1px solid rgba(127, 220, 255, 0.95);
+  background: rgba(21, 166, 240, 0.22);
+  pointer-events: none;
+}
+
+/* Window snapping (snap.ts, SnapAssist.tsx) */
+
+.snap-preview {
+  position: fixed;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.97);
+  transition:
+    opacity 0.15s,
+    transform 0.15s,
+    left 0.15s,
+    top 0.15s,
+    width 0.15s,
+    height 0.15s;
+  /* Inset from the zone so it reads as a highlight, not a window. */
+  box-sizing: border-box;
+  clip-path: inset(6px round 12px);
+}
+
+.snap-preview.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.snap-assist {
+  position: fixed;
+  z-index: 89000;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 14px;
+  background: rgba(10, 14, 24, 0.45);
+  backdrop-filter: blur(18px) saturate(1.4);
+  color: #fff;
+  animation: snap-assist-in 0.2s ease-out;
+  clip-path: inset(6px round 14px);
+}
+
+@keyframes snap-assist-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.snap-assist p {
+  font-size: 15px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.snap-assist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+}
+
+.snap-assist-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 12px 14px;
+  border-radius: 12px;
+  background: var(--glass);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.snap-assist-grid button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snap-assist-grid button:hover,
+.snap-assist-grid button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
 }
 
 /* Panel */

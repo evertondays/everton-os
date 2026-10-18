@@ -65,6 +65,7 @@ const pt = {
   'menu.search': 'Buscar aplicativos',
   'menu.empty': 'Nenhum aplicativo encontrado',
   'menu.logout': 'Sair',
+  'snap.assist': 'Escolha uma janela para este lado',
 
   'mobile.slide': 'Deslize para abrir',
   'mobile.home': 'Ir para a tela inicial',
@@ -213,6 +214,7 @@ const en: Record<TKey, string> = {
   'menu.search': 'Search applications',
   'menu.empty': 'No applications found',
   'menu.logout': 'Log out',
+  'snap.assist': 'Choose a window for this side',
 
   'mobile.slide': 'Swipe up to open',
   'mobile.home': 'Go to the home screen',

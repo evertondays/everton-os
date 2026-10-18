@@ -1,6 +1,7 @@
 import { type AppSource, track } from '../../analytics.ts'
 import { type AppArgs, type AppId, apps } from '../../system/apps.ts'
 import { createStore } from '../../system/store.ts'
+import type { SnapSide, SnapZone } from './snap.ts'
 import type { WindowHandle } from './useWindow.ts'
 
 // The list of open windows. React renders one <Window> per entry; the entries
@@ -22,9 +23,11 @@ interface State {
   focusedId: string | null
   /** Window ids, most recently focused first. */
   recent: string[]
+  /** Set right after a window snaps to one side: the other windows are offered for the other side. */
+  assist: { side: SnapSide; sourceId: string } | null
 }
 
-const empty: State = { windows: [], focusedId: null, recent: [] }
+const empty: State = { windows: [], focusedId: null, recent: [], assist: null }
 
 export const windows = createStore<State>(empty)
 
@@ -60,7 +63,24 @@ export function closeWindow(id: string) {
     windows: state.windows.filter((win) => win.id !== id),
     recent: state.recent.filter((other) => other !== id),
     focusedId: state.focusedId === id ? null : state.focusedId,
+    assist: state.assist?.sourceId === id ? null : state.assist,
   }))
+}
+
+/** Offers the other open windows for `side`, after `sourceId` snapped to the opposite one. */
+export function startSnapAssist(sourceId: string, side: SnapSide) {
+  if (windows.get().windows.some((win) => win.id !== sourceId)) windows.set({ assist: { side, sourceId } })
+}
+
+export function endSnapAssist() {
+  if (windows.get().assist) windows.set({ assist: null })
+}
+
+/** Snaps a window into a zone and brings it to the front. */
+export function snapWindow(id: string, zone: SnapZone) {
+  const handle = handles.get(id)?.()
+  handle?.snap(zone)
+  handle?.focus()
 }
 
 export function closeAllWindows() {
