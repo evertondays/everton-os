@@ -1,5 +1,4 @@
-import { useResume } from '../data/resume.ts'
-import { assetUrl } from '../system/media.ts'
+import { assetUrl, useResume } from '../sdk/index.ts'
 
 /** The photo from curriculo.json, or the initials while none is set. */
 export function Avatar({ size }: { size: number }) {

@@ -1,16 +1,28 @@
 import { BatteryFull, ChevronLeft, Lock, Signal, Wifi } from 'lucide-react'
-import { type PointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type AppSource, track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { type AppArgs, type AppDef, type AppId, apps, appsFor, resumeShortcut } from '../../system/apps.ts'
+import type { LaunchArgs } from '../../sdk/app.ts'
+import { type AppDef, type AppId, appName, apps, appsFor, preloadApps } from '../../system/apps.ts'
+import { type Tile, tiles } from '../../system/fileUi.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
-import { RESUME_PATH, publicArgs } from '../../system/fs.ts'
-import { type AppWindow, AppWindowContext, type CloseGuard, type OS, OSContext, useOS } from '../../system/os.ts'
+import { RESUME_PATH, publicArgs, useFsReady } from '../../system/fs.ts'
+import {
+  type AppWindow,
+  AppWindowContext,
+  type CloseGuard,
+  OSContext,
+  ProcessContext,
+  type ShellOS,
+  useOS,
+} from '../../system/os.ts'
+import { type Pid, exit, hasArgs, relaunch, spawn } from '../../system/processes.ts'
 import { settings } from '../../system/settings.ts'
 import { useClock } from '../../system/useClock.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
+import { AppContent } from '../AppContent.tsx'
 import './mobile.css'
 
 // The phone shell: lock screen, home screen with a dock, and apps in full
@@ -21,9 +33,10 @@ const ICONS_PER_PAGE = 20
 const CLOSE_ANIMATION = 220
 
 interface Screen {
-  key: number
+  /** The process it runs. */
+  key: Pid
   appId: AppId
-  args?: AppArgs
+  args: LaunchArgs
   /** Where the tap that opened it landed; the app zooms in from there. */
   origin: { x: number; y: number }
 }
@@ -44,8 +57,9 @@ export default function MobileShell() {
   const [screens, setScreens] = useState<Screen[]>([])
   const [closing, setClosing] = useState(false)
   const lastTap = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-  const sequence = useRef(0)
   const firstVisit = useRef(!settings.get().visited)
+  // The visitor's files load while the lock screen is up; apps only show once they're there.
+  const ready = useFsReady()
 
   // The callbacks below need the app on top without being rebuilt on every change.
   const top = useRef<Screen | undefined>(undefined)
@@ -59,6 +73,9 @@ export default function MobileShell() {
     top.current = screens.at(-1)
     stack.current = screens
   })
+
+  // While the lock screen is up, the apps load in the background, so they open at once.
+  useEffect(() => preloadApps('mobile'), [])
 
   /** Runs `leave` if the guards of `list` let it; one question at a time. */
   const leaveIfAllowed = useCallback(
@@ -75,18 +92,48 @@ export default function MobileShell() {
     [guards],
   )
 
-  const open = useCallback((appId: AppId, source: AppSource, args?: AppArgs) => {
-    track('app_opened', { app: appId, source, ...publicArgs(args) })
-    const screen: Screen = { key: ++sequence.current, appId, args, origin: lastTap.current }
+  /**
+   * Opens an app on top. A single-instance app that's already open comes back
+   * to the top instead, with the new arguments.
+   */
+  const open = useCallback((appId: AppId, args: LaunchArgs, source: AppSource): Pid | null => {
+    const app = apps.get(appId)
+    if (!app) return null
+    const existing = app.single ? stack.current.find((screen) => screen.appId === appId) : undefined
+    track('app_opened', { app: appId, source, ...publicArgs(args), already_open: existing !== undefined })
+    if (existing) {
+      if (hasArgs(args)) relaunch(existing.key, args)
+      setScreens((list) => [...list.filter((screen) => screen.key !== existing.key), existing])
+      return existing.key
+    }
+    const { pid } = spawn(appId, args)
+    const screen: Screen = { key: pid, appId, args, origin: lastTap.current }
     setScreens((list) => [...list, screen])
+    return pid
   }, [])
 
-  const os = useMemo<OS>(() => ({ shell: 'mobile', open }), [open])
+  /** Closes the screen of process `pid` (`kill` in the Terminal), if its app lets it. */
+  const kill = useCallback(
+    (pid: Pid) => {
+      const screen = stack.current.find((other) => other.key === pid)
+      if (!screen) return
+      void leaveIfAllowed([screen], () => {
+        exit(pid)
+        setScreens((list) => list.filter((other) => other.key !== pid))
+      })
+    },
+    [leaveIfAllowed],
+  )
+
+  const os = useMemo<ShellOS>(() => ({ shell: 'mobile', exec: open, kill }), [open, kill])
 
   const back = useCallback(() => {
     const screen = top.current
     void leaveIfAllowed(screen ? [screen] : [], () => {
-      if (screen) track('app_closed', { app: screen.appId, method: 'back' })
+      if (screen) {
+        track('app_closed', { app: screen.appId, method: 'back' })
+        exit(screen.key)
+      }
       setScreens((list) => list.slice(0, -1))
     })
   }, [leaveIfAllowed])
@@ -97,6 +144,7 @@ export default function MobileShell() {
       if (screen) track('app_closed', { app: screen.appId, method: 'home' })
       setClosing(true)
       window.setTimeout(() => {
+        stack.current.forEach((other) => exit(other.key))
         setScreens([])
         setClosing(false)
       }, CLOSE_ANIMATION)
@@ -108,7 +156,7 @@ export default function MobileShell() {
     // A first-time visitor is greeted with the About me app.
     if (firstVisit.current) {
       firstVisit.current = false
-      open('about', 'first_visit')
+      open('about', {}, 'first_visit')
     }
     settings.set({ visited: true })
   }, [open])
@@ -124,18 +172,19 @@ export default function MobileShell() {
       >
         <StatusBar overApp={screens.length > 0 && !locked} />
         <HomeScreen />
-        {screens.map((screen, index) => (
-          <AppScreen
-            key={screen.key}
-            screen={screen}
-            active={index === screens.length - 1}
-            closing={closing}
-            onBack={index > 0 ? back : undefined}
-            onClose={index > 0 ? back : goHome}
-            guards={guards}
-          />
-        ))}
-        {screens.length > 0 && <HomeBar onHome={goHome} />}
+        {ready &&
+          screens.map((screen, index) => (
+            <AppScreen
+              key={screen.key}
+              screen={screen}
+              active={index === screens.length - 1}
+              closing={closing}
+              onBack={index > 0 ? back : undefined}
+              onClose={index > 0 ? back : goHome}
+              guards={guards}
+            />
+          ))}
+        {ready && screens.length > 0 && <HomeBar onHome={goHome} />}
         {locked && <LockScreen onUnlock={unlock} />}
       </div>
     </OSContext.Provider>
@@ -222,28 +271,29 @@ function LockScreen({ onUnlock }: { onUnlock(): void }) {
 interface HomeIcon {
   id: string
   label: string
-  icon: Pick<AppDef, 'icon' | 'tint'>
+  icon: Tile
   open(): void
 }
 
 function HomeScreen() {
   const t = useT()
+  const locale = useLocale()
   const os = useOS()
   const [page, setPage] = useState(0)
 
   const appIcon = (app: AppDef, source: AppSource): HomeIcon => ({
     id: app.id,
-    label: t(app.name),
+    label: appName(app, locale),
     icon: app,
-    open: () => os.open(app.id, source),
+    open: () => os.exec(app.id, {}, source),
   })
 
   const icons: HomeIcon[] = [
     {
       id: 'resume',
-      label: t(resumeShortcut.name),
-      icon: resumeShortcut,
-      open: () => os.open('viewer', 'home_screen', { path: RESUME_PATH }),
+      label: t('app.resume'),
+      icon: tiles.resume,
+      open: () => os.exec('viewer', { files: [RESUME_PATH] }, 'home_screen'),
     },
     // The résumé shortcut stands in for the Viewer; dock apps live in the dock.
     ...appsFor('mobile')
@@ -287,7 +337,12 @@ function HomeScreen() {
         </div>
       )}
 
-      <nav className="ios-dock">{DOCK.map((id) => button(appIcon(apps[id], 'dock'), false))}</nav>
+      <nav className="ios-dock">
+        {DOCK.flatMap((id) => {
+          const app = apps.get(id)
+          return app ? [button(appIcon(app, 'dock'), false)] : []
+        })}
+      </nav>
     </div>
   )
 }
@@ -309,9 +364,10 @@ function AppScreen({
   guards: Map<number, CloseGuard>
 }) {
   const t = useT()
-  const app = apps[screen.appId]
+  const locale = useLocale()
+  const app = apps.get(screen.appId)!
   const [title, setTitle] = useState<string | null>(null)
-  const { key } = screen
+  const { key, appId } = screen
   const appWindow = useMemo<AppWindow>(
     () => ({
       setTitle,
@@ -323,9 +379,9 @@ function AppScreen({
     }),
     [onClose, guards, key],
   )
+  const process = useMemo(() => ({ pid: key, appId }), [key, appId])
 
   useEffect(() => () => void guards.delete(key), [guards, key])
-  const App = app.component
 
   return (
     <section
@@ -340,14 +396,14 @@ function AppScreen({
             {t('common.back')}
           </button>
         )}
-        <h1>{title ?? t(app.name)}</h1>
+        <h1>{title ?? appName(app, locale)}</h1>
       </header>
       <div className="ios-app-body">
-        <AppWindowContext.Provider value={appWindow}>
-          <Suspense fallback={<div className="app-loading" />}>
-            <App args={screen.args} />
-          </Suspense>
-        </AppWindowContext.Provider>
+        <ProcessContext.Provider value={process}>
+          <AppWindowContext.Provider value={appWindow}>
+            <AppContent app={app} args={screen.args} />
+          </AppWindowContext.Provider>
+        </ProcessContext.Provider>
       </div>
     </section>
   )

@@ -1,234 +1,90 @@
-import {
-  Calculator,
-  CalendarDays,
-  Cpu,
-  FileText,
-  FileUser,
-  Folder,
-  Globe,
-  Images,
-  type LucideIcon,
-  Mail,
-  NotebookPen,
-  Settings,
-  Terminal,
-  Trash,
-  User,
-} from 'lucide-react'
-import { type ComponentType, type LazyExoticComponent, lazy } from 'react'
-import type { TKey } from '../i18n/dict.ts'
-import type { Shell } from './os.ts'
-import type { ShortcutId } from './userFs.ts'
+import type { ComponentType } from 'react'
+import type { Locale } from '../data/localize.ts'
+import type { AppManifest, AppProps, Shell } from '../sdk/app.ts'
 
-export type AppId =
-  | 'files'
-  | 'viewer'
-  | 'about'
-  | 'terminal'
-  | 'gallery'
-  | 'calculator'
-  | 'contact'
-  | 'system'
-  | 'browser'
-  | 'settings'
-  | 'trash'
-  | 'editor'
-  | 'calendar'
+// The installed apps: every src/apps/*/manifest.ts. Only the manifests are
+// bundled with the system; each app's component stays its own chunk, loaded
+// ahead of time when the browser is idle (preloadApps) or when it's opened.
 
-export interface AppArgs {
-  /** File system path (Files, Viewer, Editor). */
-  path?: string
-  /** Address to load (Browser). */
-  url?: string
-}
+export type AppId = string
 
-export interface AppProps {
-  args?: AppArgs
-}
-
-export interface AppDef {
-  id: AppId
-  name: TKey
-  icon: LucideIcon
-  /** Gradient of the icon tile. */
-  tint: [string, string]
-  /** Loaded on demand, so each app is its own chunk. */
-  component: LazyExoticComponent<ComponentType<AppProps>>
-  /** Default window size on the desktop. */
+export interface AppDef extends AppManifest {
   width: number
   height: number
-  /** Only one instance at a time. */
-  single?: boolean
-  /** Only offered in this shell (the desktop has the Calendar in the panel's clock instead). */
-  shell?: Shell
+  /** Loads the component, once; resolves with it. */
+  load(): Promise<ComponentType<AppProps>>
+  /** The component if it's loaded, else null. */
+  loaded(): ComponentType<AppProps> | null
 }
+
+const DEFAULT_WINDOW = { width: 720, height: 480 }
+/** Where apps without an `order` go: after the others. */
+const LAST = 1000
+
+const modules = import.meta.glob<{ default: AppManifest }>('../apps/*/manifest.ts', { eager: true })
+
+function toAppDef(manifest: AppManifest): AppDef {
+  let component: ComponentType<AppProps> | null = null
+  let loading: Promise<ComponentType<AppProps>> | null = null
+  return {
+    ...manifest,
+    ...(manifest.window ?? DEFAULT_WINDOW),
+    load() {
+      loading ??= manifest.entry().then(
+        (module) => (component = module.default),
+        (error: unknown) => {
+          // Try again next time (a network hiccup, a deploy that just happened).
+          loading = null
+          throw error
+        },
+      )
+      return loading
+    },
+    loaded: () => component,
+  }
+}
+
+export const apps: ReadonlyMap<AppId, AppDef> = new Map(
+  Object.values(modules).map(({ default: manifest }) => [manifest.id, toAppDef(manifest)]),
+)
+
+/** Every app, in the order of the menu (desktop) and the home screen (mobile). */
+export const appList: AppDef[] = [...apps.values()].toSorted(
+  (a, b) => (a.order ?? LAST) - (b.order ?? LAST) || a.id.localeCompare(b.id),
+)
+
+const offeredIn = (app: AppDef, shell: Shell) => !app.shells || app.shells.includes(shell)
+
+/** The apps a shell can run. */
+export const runnableIn = (shell: Shell) => appList.filter((app) => offeredIn(app, shell))
 
 /** The apps a shell lists in its menu or home screen, and that the Terminal can open there. */
-export const appsFor = (shell: Shell) => appList.filter((app) => !app.shell || app.shell === shell)
+export const appsFor = (shell: Shell) => runnableIn(shell).filter((app) => app.listed !== false)
 
-export const apps: Record<AppId, AppDef> = {
-  files: {
-    id: 'files',
-    name: 'app.files',
-    icon: Folder,
-    tint: ['#4fc3ff', '#1589e0'],
-    component: lazy(() => import('../apps/Files.tsx')),
-    width: 820,
-    height: 520,
-  },
-  viewer: {
-    id: 'viewer',
-    name: 'app.viewer',
-    icon: FileText,
-    tint: ['#ff7a70', '#d93a3a'],
-    component: lazy(() => import('../apps/Viewer.tsx')),
-    width: 760,
-    height: 640,
-  },
-  about: {
-    id: 'about',
-    name: 'app.about',
-    icon: User,
-    tint: ['#8f9bff', '#5a55e0'],
-    component: lazy(() => import('../apps/About.tsx')),
-    width: 520,
-    height: 600,
-    single: true,
-  },
-  terminal: {
-    id: 'terminal',
-    name: 'app.terminal',
-    icon: Terminal,
-    tint: ['#4a5260', '#22262d'],
-    component: lazy(() => import('../apps/Terminal.tsx')),
-    width: 720,
-    height: 460,
-  },
-  gallery: {
-    id: 'gallery',
-    name: 'app.gallery',
-    icon: Images,
-    tint: ['#ffb14a', '#f0703a'],
-    component: lazy(() => import('../apps/Gallery.tsx')),
-    width: 800,
-    height: 560,
-    single: true,
-  },
-  calculator: {
-    id: 'calculator',
-    name: 'app.calculator',
-    icon: Calculator,
-    tint: ['#5fd98b', '#1fa86a'],
-    component: lazy(() => import('../apps/Calculator.tsx')),
-    width: 340,
-    height: 500,
-    single: true,
-  },
-  contact: {
-    id: 'contact',
-    name: 'app.contact',
-    icon: Mail,
-    tint: ['#45d6c4', '#0e9aa8'],
-    component: lazy(() => import('../apps/Contact.tsx')),
-    width: 520,
-    height: 620,
-    single: true,
-  },
-  system: {
-    id: 'system',
-    name: 'app.system',
-    icon: Cpu,
-    tint: ['#c08bff', '#8548d6'],
-    component: lazy(() => import('../apps/SystemInfo.tsx')),
-    width: 700,
-    height: 500,
-    single: true,
-  },
-  browser: {
-    id: 'browser',
-    name: 'app.browser',
-    icon: Globe,
-    tint: ['#58b4ff', '#3464e0'],
-    component: lazy(() => import('../apps/Browser.tsx')),
-    width: 960,
-    height: 640,
-  },
-  settings: {
-    id: 'settings',
-    name: 'app.settings',
-    icon: Settings,
-    tint: ['#a7b0bc', '#6a7482'],
-    component: lazy(() => import('../apps/Settings.tsx')),
-    width: 620,
-    height: 560,
-    single: true,
-  },
-  trash: {
-    id: 'trash',
-    name: 'app.trash',
-    icon: Trash,
-    tint: ['#b9c1cc', '#7d8794'],
-    component: lazy(() => import('../apps/Trash.tsx')),
-    width: 700,
-    height: 460,
-    single: true,
-  },
-  editor: {
-    id: 'editor',
-    name: 'app.editor',
-    icon: NotebookPen,
-    tint: ['#ffd36b', '#e89a1c'],
-    component: lazy(() => import('../apps/Editor.tsx')),
-    width: 680,
-    height: 520,
-  },
-  calendar: {
-    id: 'calendar',
-    name: 'app.calendar',
-    icon: CalendarDays,
-    tint: ['#ff7aa8', '#e64980'],
-    component: lazy(() => import('../apps/Calendar.tsx')),
-    width: 380,
-    height: 640,
-    single: true,
-    shell: 'mobile',
-  },
+export const appName = (app: AppManifest, locale: Locale) => app.name[locale]
+
+let preloading = false
+
+/** Whether apps are being loaded ahead of time: a failure then is no reason to reload the page (main.tsx). */
+export const isPreloading = () => preloading
+
+/**
+ * Loads the apps of `shell` ahead of time, one after another, once the
+ * browser is idle, so they open at once. A few dozen kB, cached afterwards.
+ */
+export function preloadApps(shell: Shell) {
+  const idle = window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1000))
+  idle(async () => {
+    for (const app of runnableIn(shell)) {
+      if (app.loaded()) continue
+      preloading = true
+      try {
+        await app.load()
+      } catch {
+        // Offline, or a deploy removed the chunk: it loads (or fails visibly) when opened.
+      } finally {
+        preloading = false
+      }
+    }
+  })
 }
-
-/** How the visitor's own files and folders look as desktop icons: a text file is a white page with blue writing. */
-export const userNodeIcons: Record<'file' | 'dir', Pick<AppDef, 'icon' | 'tint'> & { ink?: string }> = {
-  file: { icon: FileText, tint: ['#ffffff', '#dde4ee'], ink: '#2f6fe0' },
-  dir: { icon: Folder, tint: ['#4fc3ff', '#1589e0'] },
-}
-
-/** The shortcut to the résumé file that both shells keep one click away. */
-export const resumeShortcut: Pick<AppDef, 'name' | 'icon' | 'tint'> = {
-  name: 'app.resume',
-  icon: FileUser,
-  tint: ['#ff7a70', '#d93a3a'],
-}
-
-/** How the desktop's shortcuts look, wherever they are. */
-export const shortcutIcons: Record<ShortcutId, Pick<AppDef, 'icon' | 'tint'>> = {
-  resume: resumeShortcut,
-  projects: apps.files,
-  contact: apps.contact,
-  terminal: apps.terminal,
-}
-
-/** Order of the apps in the menu (desktop) and on the home screen (mobile). */
-export const appList: AppDef[] = [
-  apps.about,
-  apps.files,
-  apps.viewer,
-  apps.editor,
-  apps.terminal,
-  apps.gallery,
-  apps.calendar,
-  apps.browser,
-  apps.contact,
-  apps.calculator,
-  apps.system,
-  apps.settings,
-  apps.trash,
-]

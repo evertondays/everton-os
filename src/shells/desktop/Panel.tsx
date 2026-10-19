@@ -1,10 +1,11 @@
-import { Maximize, Moon, Sun, Volume2, Wifi } from 'lucide-react'
-import { useRef } from 'react'
+import { Maximize, Minimize, Moon, Sun, Volume2, Wifi } from 'lucide-react'
+import { useRef, useSyncExternalStore } from 'react'
 import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { Logo } from '../../components/Logo.tsx'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { apps, resumeShortcut } from '../../system/apps.ts'
+import { appName, apps } from '../../system/apps.ts'
+import { tiles } from '../../system/fileUi.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH } from '../../system/fs.ts'
 import { useOS } from '../../system/os.ts'
@@ -34,6 +35,17 @@ async function toggleFullscreen() {
   ])
 }
 
+// Follows the browser's full screen, so Esc (or F11's exit) also flips the icon.
+function useFullscreen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      document.addEventListener('fullscreenchange', onChange)
+      return () => document.removeEventListener('fullscreenchange', onChange)
+    },
+    () => document.fullscreenElement !== null,
+  )
+}
+
 export function Panel({
   menuOpen,
   onToggleMenu,
@@ -50,6 +62,7 @@ export function Panel({
   const os = useOS()
   const now = useClock()
   const theme = useSettings((s) => s.theme)
+  const fullscreen = useFullscreen()
   const list = useStore(windows, (s) => s.windows)
   const focusedId = useStore(windows, (s) => s.focusedId)
   // WinBox blurs the focused window as soon as the mouse goes down outside it,
@@ -71,18 +84,19 @@ export function Panel({
 
       <button
         className="panel-button"
-        onClick={() => os.open('viewer', 'panel', { path: RESUME_PATH })}
+        onClick={() => os.exec('viewer', { files: [RESUME_PATH] }, 'panel')}
         title={t('app.resume')}
         aria-label={t('app.resume')}
       >
-        <AppIcon app={resumeShortcut} size={28} />
+        <AppIcon app={tiles.resume} size={28} />
       </button>
 
       <span className="panel-separator" />
 
       <div className="panel-tasks">
         {list.map((win) => {
-          const title = win.title ?? t(apps[win.appId].name)
+          const app = apps.get(win.appId)!
+          const title = win.title ?? appName(app, locale)
           const focused = win.id === focusedId
           return (
             <button
@@ -99,7 +113,7 @@ export function Panel({
               }}
               title={title}
             >
-              <AppIcon app={apps[win.appId]} size={24} />
+              <AppIcon app={app} size={24} />
               <span>{title}</span>
             </button>
           )
@@ -126,10 +140,10 @@ export function Panel({
         <button
           className="panel-button"
           onClick={() => void toggleFullscreen()}
-          title={t('panel.fullscreen')}
-          aria-label={t('panel.fullscreen')}
+          title={t(fullscreen ? 'panel.exitFullscreen' : 'panel.fullscreen')}
+          aria-label={t(fullscreen ? 'panel.exitFullscreen' : 'panel.fullscreen')}
         >
-          <Maximize size={16} />
+          {fullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
         <span className="panel-status" aria-hidden>
           <Wifi size={16} />

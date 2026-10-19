@@ -21,6 +21,8 @@
   --active: rgba(0, 0, 0, 0.11);
   --glass: rgba(246, 247, 249, 0.82);
   --shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 14px 36px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.12);
+  --scrollbar: rgba(0, 0, 0, 0.22);
+  --scrollbar-hover: rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme='dark'] {
@@ -36,6 +38,8 @@
   --active: rgba(255, 255, 255, 0.15);
   --glass: rgba(30, 33, 38, 0.82);
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.2);
+  --scrollbar-hover: rgba(255, 255, 255, 0.36);
 }
 
 *,
@@ -76,6 +80,41 @@ ul,
 ol {
   padding: 0;
   list-style: none;
+}
+
+/* Scrollbars: thin rounded thumbs on a clear track, in the theme's colors.
+   Chromium and Safari draw them from the ::-webkit-scrollbar parts (the border
+   insets the thumb); Firefox only has the standard properties. */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
+}
+
+::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
 }
 
 button,
@@ -124,6 +163,20 @@ a {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 2px 6px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+/* The arrow of a shortcut (a symlink), in the bottom-left corner. */
+.app-icon-link {
+  position: absolute;
+  left: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  border-radius: 30%;
+  background: #fff;
+  color: #1d2430;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .avatar {
@@ -208,6 +261,10 @@ a.icon-button,
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 96px;
   padding: 5px 14px;
   border-radius: 7px;
@@ -309,6 +366,52 @@ a.icon-button,
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* Open and Save dialogs (shells/FileDialog.tsx): a small Files. */
+
+.dialog.file-dialog {
+  width: min(600px, 100%);
+}
+
+.file-dialog .toolbar {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.file-dialog .file-dialog-list {
+  height: min(300px, 45vh);
+  flex: none;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.file-dialog-list .file {
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.file-dialog-empty {
+  grid-column: 1 / -1;
+  padding: 24px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.file-dialog-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.file-dialog-name .input {
+  flex: 1;
+  min-width: 0;
 }
 
 .button.is-danger {

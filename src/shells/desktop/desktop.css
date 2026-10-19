@@ -49,8 +49,28 @@
   border-color: rgba(255, 255, 255, 0.45);
 }
 
-.desktop-icon.is-dragging {
+/* Long names take two lines at most; a selected icon shows the whole name, over the icon below. */
+.desktop-icon-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.desktop-icon.is-selected {
   z-index: 1;
+  /* What a long name covers stays in the background. */
+  backdrop-filter: blur(10px);
+}
+
+.desktop-icon.is-selected .desktop-icon-label {
+  -webkit-line-clamp: unset;
+}
+
+/* Above the windows, so icons can be dragged into a Files window. */
+.desktop-icon.is-dragging {
+  z-index: 89500;
   opacity: 0.8;
   pointer-events: none;
 }
@@ -513,8 +533,12 @@
 .menu-apps {
   flex: 1;
   min-height: 0;
-  padding: 4px 8px;
+  padding: 4px 2px 4px 8px;
   overflow: auto;
+  /* The bar's room is kept, so the list doesn't shift when a search makes it fit.
+     (It can't hide until hovered: Chromium styles a scrollbar once, when it's made.) */
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .menu-apps button {

@@ -1,6 +1,7 @@
 import type { Locale } from '../src/data/localize.ts'
 import type { Resume } from '../src/data/types.ts'
 import { type TKey, translate } from '../src/i18n/dict.ts'
+import { repoText } from '../src/system/content.ts'
 import { formatMonth, formatPeriod } from '../src/system/format.ts'
 
 // The classic version: the whole résumé as one static, print-ready HTML page.
@@ -61,7 +62,7 @@ ${list(item.highlights)}
     .map((item) => {
       const links = [
         item.demo && `<a href="${escape(item.demo)}">${t('content.demo')}</a>`,
-        item.url && `<a href="${escape(item.url)}">${t('content.repo')}</a>`,
+        ...item.repos.map((repo) => `<a href="${escape(repo.url)}">${escape(repoText(repo, locale))}</a>`),
       ].filter(Boolean)
       return `<article>
 <h3>${escape(item.name)}</h3>

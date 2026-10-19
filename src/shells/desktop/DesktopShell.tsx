@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { track } from '../../analytics.ts'
-import { type OS, OSContext } from '../../system/os.ts'
+import { preloadApps } from '../../system/apps.ts'
+import { useFsReady } from '../../system/fs.ts'
+import { OSContext, type ShellOS } from '../../system/os.ts'
 import { settings } from '../../system/settings.ts'
 import { useStore } from '../../system/store.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
@@ -13,7 +15,7 @@ import { Panel } from './Panel.tsx'
 import { SnapAssist } from './SnapAssist.tsx'
 import { Switcher } from './Switcher.tsx'
 import { Window } from './Window.tsx'
-import { closeAllWindows, openWindow, windows } from './windows.ts'
+import { closeAllWindows, killWindow, openWindow, windows } from './windows.ts'
 import './desktop.css'
 
 type Phase = 'boot' | 'login' | 'desktop'
@@ -28,10 +30,16 @@ function initialPhase(): Phase {
 
 export default function DesktopShell() {
   const [phase, setPhase] = useState<Phase>(initialPhase)
+  // Boot and login usually outlast loading the visitor's files; a reload, which skips them, may not.
+  const ready = useFsReady()
 
   const showLogin = useCallback(() => setPhase('login'), [])
 
+  // While boot and login play, the apps load in the background, so they open at once.
+  useEffect(() => preloadApps('desktop'), [])
+
   if (phase === 'boot') return <Boot onDone={showLogin} />
+  if (phase === 'desktop' && !ready) return <Loading />
   if (phase === 'login') {
     return (
       <Login
@@ -53,6 +61,12 @@ export default function DesktopShell() {
   )
 }
 
+/** The empty desktop, while the file system mounts. */
+function Loading() {
+  const wallpaper = useWallpaper()
+  return <div className="desktop" style={{ backgroundImage: wallpaper.css }} aria-busy />
+}
+
 function Desktop({ onLogout }: { onLogout(): void }) {
   const wallpaper = useWallpaper()
   const list = useStore(windows, (s) => s.windows)
@@ -60,7 +74,7 @@ function Desktop({ onLogout }: { onLogout(): void }) {
   const firstVisit = useRef(!settings.get().visited)
   const menuTrigger = useRef<'panel_button' | 'super_key'>('panel_button')
 
-  const os = useMemo<OS>(() => ({ shell: 'desktop', open: openWindow }), [])
+  const os = useMemo<ShellOS>(() => ({ shell: 'desktop', exec: openWindow, kill: killWindow }), [])
   const closeMenu = useCallback(() => setMenuOpen(false), [])
   // The calendar that opens from the clock in the panel.
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -68,7 +82,7 @@ function Desktop({ onLogout }: { onLogout(): void }) {
 
   useEffect(() => {
     // A first-time visitor is greeted with the About me app.
-    if (firstVisit.current) openWindow('about', 'first_visit')
+    if (firstVisit.current) openWindow('about', {}, 'first_visit')
     settings.set({ visited: true })
     return closeAllWindows
   }, [])

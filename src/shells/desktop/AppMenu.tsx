@@ -5,7 +5,7 @@ import { AppIcon } from '../../components/AppIcon.tsx'
 import { Avatar } from '../../components/Avatar.tsx'
 import { useResume } from '../../data/resume.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { type AppDef, appsFor } from '../../system/apps.ts'
+import { type AppDef, appName, appsFor } from '../../system/apps.ts'
 import { classicUrl } from '../../system/media.ts'
 import { useOS } from '../../system/os.ts'
 
@@ -17,12 +17,12 @@ export function AppMenu({ onClose, onLogout }: { onClose(): void; onLogout(): vo
   const [query, setQuery] = useState('')
   const menu = useRef<HTMLDivElement>(null)
 
-  const results = appsFor('desktop').filter((app) => t(app.name).toLowerCase().includes(query.trim().toLowerCase()))
+  const results = appsFor('desktop').filter((app) => appName(app, locale).toLowerCase().includes(query.trim().toLowerCase()))
 
   const launch = (app: AppDef) => {
     if (query.trim()) track('app_menu_searched', { query: query.trim(), results: results.length, selected_app: app.id })
     onClose()
-    os.open(app.id, 'app_menu')
+    os.exec(app.id, {}, 'app_menu')
   }
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function AppMenu({ onClose, onLogout }: { onClose(): void; onLogout(): vo
           <li key={app.id}>
             <button onClick={() => launch(app)}>
               <AppIcon app={app} size={34} />
-              <span>{t(app.name)}</span>
+              <span>{appName(app, locale)}</span>
             </button>
           </li>
         ))}

@@ -55,13 +55,19 @@ export interface Media {
   caption: string
 }
 
+/** A project's repository. `label` tells a project's repositories apart ("backend", "mobile"). */
+export interface Repo {
+  label?: string
+  url: string
+}
+
 export interface Project {
   id: string
   name: string
   description: string
   highlights: string[]
   keywords: string[]
-  url?: string
+  repos: Repo[]
   demo?: string
   images: Media[]
 }

@@ -1,9 +1,10 @@
-import { type RefObject, Suspense, useEffect, useMemo, useRef } from 'react'
+import { type RefObject, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { track } from '../../analytics.ts'
-import { useT } from '../../i18n/index.ts'
-import { apps } from '../../system/apps.ts'
-import { type AppWindow, AppWindowContext, type CloseGuard } from '../../system/os.ts'
+import { useLocale } from '../../i18n/index.ts'
+import { appName, apps } from '../../system/apps.ts'
+import { type AppWindow, AppWindowContext, type CloseGuard, ProcessContext } from '../../system/os.ts'
+import { AppContent } from '../AppContent.tsx'
 import { PANEL_HEIGHT, workArea } from './layout.ts'
 import { isSide, oppositeSide } from './snap.ts'
 import { useWindow } from './useWindow.ts'
@@ -20,7 +21,7 @@ import {
 
 /** Size and position for a new window: the app's default, cascaded and kept on screen. */
 function placement(win: Win) {
-  const app = apps[win.appId]
+  const app = apps.get(win.appId)!
   const { width: screenWidth, height: screenHeight } = workArea()
   const width = Math.min(app.width, screenWidth - 32)
   const height = Math.min(app.height, screenHeight - 32)
@@ -49,14 +50,14 @@ async function guardedClose(id: string, guard: RefObject<CloseGuard | null>, ask
 }
 
 export function Window({ win }: { win: Win }) {
-  const t = useT()
-  const app = apps[win.appId]
-  const { id } = win
+  const locale = useLocale()
+  const app = apps.get(win.appId)!
+  const { id, pid, appId } = win
   const closeGuard = useRef<CloseGuard | null>(null)
   const asking = useRef(false)
 
   const { container, handle } = useWindow({
-    title: win.title ?? t(app.name),
+    title: win.title ?? appName(app, locale),
     ...placement(win),
     bottom: PANEL_HEIGHT,
     onClose: () => void guardedClose(id, closeGuard, asking),
@@ -71,7 +72,14 @@ export function Window({ win }: { win: Win }) {
     },
   })
 
-  useEffect(() => registerWindow(id, () => handle.current), [id, handle])
+  useEffect(
+    () =>
+      registerWindow(id, {
+        handle: () => handle.current,
+        close: () => void guardedClose(id, closeGuard, asking),
+      }),
+    [id, handle],
+  )
 
   const appWindow = useMemo<AppWindow>(
     () => ({
@@ -83,15 +91,15 @@ export function Window({ win }: { win: Win }) {
     }),
     [id],
   )
+  const process = useMemo(() => ({ pid, appId }), [pid, appId])
 
   if (!container) return null
-  const App = app.component
   return createPortal(
-    <AppWindowContext.Provider value={appWindow}>
-      <Suspense fallback={<div className="app-loading" />}>
-        <App args={win.args} />
-      </Suspense>
-    </AppWindowContext.Provider>,
+    <ProcessContext.Provider value={process}>
+      <AppWindowContext.Provider value={appWindow}>
+        <AppContent app={app} args={win.args} />
+      </AppWindowContext.Provider>
+    </ProcessContext.Provider>,
     container,
   )
 }

@@ -1,5 +1,5 @@
 import type { Locale } from '../data/localize.ts'
-import type { Certificate, Education, Project, Resume, Work } from '../data/types.ts'
+import type { Certificate, Education, Project, Repo, Resume, Work } from '../data/types.ts'
 import { translate } from '../i18n/dict.ts'
 import { formatMonth, formatPeriod } from './format.ts'
 
@@ -27,10 +27,16 @@ export function experienceMarkdown(resume: Resume, locale: Locale): string {
   )
 }
 
+/** A repository link's text: "Repositório", or "Repositório (backend)" when the project has several. */
+export function repoText(repo: Repo, locale: Locale): string {
+  const text = translate(locale, 'content.repo')
+  return repo.label ? `${text} (${repo.label})` : text
+}
+
 export function projectMarkdown(project: Project, locale: Locale): string {
   const links = [
     project.demo && `[${translate(locale, 'content.demo')}](${project.demo})`,
-    project.url && `[${translate(locale, 'content.repo')}](${project.url})`,
+    ...project.repos.map((repo) => `[${repoText(repo, locale)}](${repo.url})`),
   ].filter(Boolean)
   return join(
     `# ${project.name}`,

@@ -1,282 +1,215 @@
-import { type Locale } from '../data/localize.ts'
-import type { AppId } from './apps.ts'
+import { useSyncExternalStore } from 'react'
+import { type FileSource, type FileType, track } from '../analytics.ts'
 import { getResume } from '../data/resume.ts'
-import type { Media, Resume } from '../data/types.ts'
-import { translate } from '../i18n/dict.ts'
-import {
-  certificateMarkdown,
-  educationMarkdown,
-  experienceMarkdown,
-  projectMarkdown,
-  workMarkdown,
-} from './content.ts'
-import { mediaSrc, placeholderImage } from './media.ts'
-import { settings, useSettings } from './settings.ts'
-import { useStore } from './store.ts'
-import { SHORTCUTS, type ShortcutId, type UserNode, userFs } from './userFs.ts'
+import { apps, appName } from './apps.ts'
+import { settings } from './settings.ts'
+import { IdbFs } from './vfs/drivers/idbfs.ts'
+import { MemFs } from './vfs/drivers/memfs.ts'
+import { OverlayFs } from './vfs/drivers/overlayfs.ts'
+import { ResumeFs } from './vfs/drivers/resumefs.ts'
+import { LAUNCHER_MIME, SYMLINK_MIME, URL_MIME } from './vfs/mime.ts'
+import { LEGACY_KEY, LEGACY_VERSION, seed } from './vfs/seed.ts'
+import type { Content, UpperFs } from './vfs/types.ts'
+import { type Entry, type ResolveOptions, TRASH_PATH, Vfs } from './vfs/vfs.ts'
 
-// The virtual file system: a read-only tree generated from the resume data,
-// with the visitor's own files and folders (userFs.ts) laid over it.
-// Every node has a stable `id` (used in paths, the same in every language)
-// and a localized `name` (what the user sees and may also type in the Terminal).
-
-/** `text` is a file the visitor made, `shortcut` one of the desktop's shortcuts; the others come from the résumé. */
-export type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text' | 'shortcut'
-
-export interface FsFile {
-  kind: 'file'
-  id: string
-  name: string
-  type: FileType
-  /** Markdown source, or the text of a visitor's file. */
-  content?: string
-  /** Image URL. */
-  src?: string
-  /** Link target. */
-  url?: string
-  /** Set on the visitor's own nodes, which are the only ones that can change: their key in userFs. */
-  key?: string
-  /** Which shortcut a `shortcut` file is. */
-  shortcut?: ShortcutId
-}
-
-export interface FsDir {
-  kind: 'dir'
-  id: string
-  name: string
-  children: FsNode[]
-  /** Hidden from listings of its parent (the Trash). */
-  hidden?: boolean
-  key?: string
-}
-
-export type FsNode = FsFile | FsDir
+// The system's file system: the résumé (resumefs) with the visitor's files
+// (idbfs, or memfs when IndexedDB is blocked) laid over it, mounted at the
+// root. The shells wait for it (useFsReady) before showing files.
 
 export const RESUME_PATH = '/resume.pdf'
 export const PROJECTS_PATH = '/projects'
-export const DESKTOP_PATH = '/desktop'
-export const TRASH_PATH = '/trash'
 
-const dir = (id: string, name: string, children: FsNode[]): FsDir => ({ kind: 'dir', id, name, children })
+/** How long IndexedDB gets to open before the files fall back to memory. */
+const IDB_TIMEOUT = 4000
 
-const markdown = (id: string, content: string, name = id): FsFile => ({
-  kind: 'file',
-  id,
-  name,
-  type: 'markdown',
-  content,
+const resumefs = new ResumeFs(getResume, settings.get().locale)
+settings.subscribe(() => resumefs.setLocale(settings.get().locale))
+
+export const vfs = new Vfs({
+  launcherName(id) {
+    const app = apps.get(id)
+    return app && appName(app, settings.get().locale)
+  },
 })
 
-const link = (id: string, url: string): FsFile => ({ kind: 'file', id, name: id, type: 'link', url })
-
-const slug = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-
-function images(items: Media[]): FsFile[] {
-  return items.map((media, index) => ({
-    kind: 'file',
-    id: `${slug(media.caption) || index + 1}.png`,
-    name: `${media.caption}.png`,
-    type: 'image',
-    src: mediaSrc(media),
-  }))
-}
-
-export function buildFs(resume: Resume, locale: Locale): FsDir {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key)
-
-  const experience = dir(
-    'experience',
-    t('fs.experience'),
-    resume.work.map((work) => markdown(`${work.id}.md`, workMarkdown(work, locale))),
-  )
-
-  const projects = dir(
-    'projects',
-    t('fs.projects'),
-    resume.projects.map((project) =>
-      dir(project.id, project.name, [
-        markdown('README.md', projectMarkdown(project, locale)),
-        ...(project.demo ? [link('demo.url', project.demo)] : []),
-        ...(project.url ? [link(`${t('fs.repo')}.url`, project.url)] : []),
-        ...images(project.images),
-      ]),
-    ),
-  )
-
-  const certificates = dir('certificates', t('fs.certificates'), [
-    markdown('education.md', educationMarkdown(resume.education, locale), `${t('fs.education')}.md`),
-    ...resume.certificates.flatMap((certificate): FsFile[] => [
-      markdown(`${certificate.id}.md`, certificateMarkdown(certificate, locale)),
-      {
-        kind: 'file',
-        id: `${certificate.id}.png`,
-        name: `${certificate.name}.png`,
-        type: 'image',
-        src: certificate.image ? mediaSrc({ src: certificate.image, caption: certificate.name }) : placeholderImage(certificate.name),
-      },
-    ]),
-  ])
-
-  // Starts empty; only what the visitor deletes goes in.
-  const trash: FsDir = { ...dir('trash', t('fs.trash'), []), hidden: true }
-
-  return dir('', t('fs.home'), [
-    // Where the files made on the desktop go; it starts empty.
-    dir('desktop', t('fs.desktop'), []),
-    experience,
-    projects,
-    certificates,
-    dir('photos', t('fs.photos'), images(resume.photos)),
-    { kind: 'file', id: 'resume.pdf', name: t('fs.resume'), type: 'resume' },
-    markdown('experiencia.md', experienceMarkdown(resume, locale), t('fs.experienceFile')),
-    trash,
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error('timeout')), ms)),
   ])
 }
 
-/** Adds the visitor's nodes to a copy of `base`, each under the folder its `parent` path names. */
-function overlay(base: FsDir, nodes: UserNode[], locale: Locale): FsDir {
-  const byParent = new Map<string, UserNode[]>()
-  for (const node of nodes) byParent.set(node.parent, [...(byParent.get(node.parent) ?? []), node])
-
-  const shortcutOrder = Object.keys(SHORTCUTS)
-  // Shortcuts first, in their usual order, then folders, then files, by name.
-  const rank = (node: UserNode) =>
-    node.shortcut ? shortcutOrder.indexOf(node.shortcut) : shortcutOrder.length + (node.kind === 'dir' ? 0 : 1)
-
-  const toFsNode = (node: UserNode, path: string): FsNode => {
-    if (node.kind === 'dir') return attach({ kind: 'dir', id: node.name, name: node.name, children: [], key: node.key }, path)
-    if (node.shortcut) {
-      const name = translate(locale, SHORTCUTS[node.shortcut].label)
-      return { kind: 'file', id: node.name, name, type: 'shortcut', shortcut: node.shortcut, key: node.key }
-    }
-    return { kind: 'file', id: node.name, name: node.name, type: 'text', content: node.content ?? '', key: node.key }
+async function mount() {
+  let legacy: string | null = null
+  try {
+    legacy = localStorage.getItem(LEGACY_KEY)
+  } catch {
+    // Storage blocked: nothing to bring over.
   }
-
-  function attach(folder: FsDir, path: string): FsDir {
-    const own = (byParent.get(path) ?? [])
-      .toSorted((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
-      .map((node) => toFsNode(node, joinPath(path, node.name)))
-    const children = folder.children.map((child) =>
-      child.kind === 'dir' ? attach(child, childPath(path, child)) : child,
-    )
-    return { ...folder, children: [...children, ...own] }
+  let upper: UpperFs = new IdbFs()
+  let seeded: Awaited<ReturnType<typeof seed>>
+  try {
+    await withTimeout(upper.init(), IDB_TIMEOUT)
+    seeded = await seed(upper, legacy)
+  } catch {
+    // No IndexedDB (blocked, private mode): the files last until the page closes.
+    upper = new MemFs()
+    await upper.init()
+    seeded = await seed(upper, legacy)
   }
-
-  return attach(base, '/')
+  vfs.mount(new OverlayFs(resumefs, upper))
+  if (seeded === 'migrated' && upper.name === 'idbfs') track('fs_migrated', { from: LEGACY_VERSION })
 }
 
-const cache = new Map<Locale, FsDir>()
-const merged = new Map<Locale, { nodes: UserNode[]; root: FsDir }>()
+void mount()
 
-/** The résumé tree alone, without the visitor's nodes. */
-function getBaseFs(locale: Locale): FsDir {
-  let root = cache.get(locale)
-  if (!root) {
-    root = buildFs(getResume(locale), locale)
-    cache.set(locale, root)
-  }
-  return root
+// React
+
+const subscribe = (listener: () => void) => vfs.subscribe(listener)
+
+/** Re-renders whenever anything in the file system changes; the number is a version. */
+export function useFsVersion(): number {
+  return useSyncExternalStore(subscribe, () => vfs.version)
 }
 
-/** The whole tree, rebuilt only when the visitor's nodes change. */
-export function getFs(locale: Locale): FsDir {
-  const { nodes } = userFs.get()
-  const hit = merged.get(locale)
-  if (hit?.nodes === nodes) return hit.root
-  const root = overlay(getBaseFs(locale), nodes, locale)
-  merged.set(locale, { nodes, root })
-  return root
+/** Whether the file system is mounted (the visitor's files are loaded). */
+export function useFsReady(): boolean {
+  return useSyncExternalStore(subscribe, () => vfs.mounted)
 }
 
-export function useFs(): FsDir {
-  const locale = useSettings((s) => s.locale)
-  // Subscribes to the visitor's nodes; getFs reads them.
-  useStore(userFs, (state) => state.nodes)
-  return getFs(locale)
+/** Whether there is anything in the Trash. */
+export function useTrashFull(): boolean {
+  return useSyncExternalStore(subscribe, () => vfs.mounted && vfs.readdir(TRASH_PATH).length > 0)
 }
 
-/**
- * Walks `path` (absolute, or relative to `cwd`) and returns the nodes from the
- * root down to the target, or null if it doesn't exist. Segments match a node's
- * id or its localized name, case-insensitively.
- */
-export function walk(root: FsDir, path: string, cwd = '/'): FsNode[] | null {
-  const chain: FsNode[] = [root]
-  // `~` is the home folder, as the Terminal's prompt shows it.
-  const home = path === '~' || path.startsWith('~/') ? path.slice(1) || '/' : path
-  const segments = (home.startsWith('/') ? home : `${cwd}/${home}`).split('/').filter(Boolean)
-  for (const segment of segments) {
-    if (segment === '.') continue
-    if (segment === '..') {
-      if (chain.length > 1) chain.pop()
-      continue
-    }
-    const current = chain[chain.length - 1]
-    if (current.kind !== 'dir') return null
-    const wanted = segment.toLowerCase()
-    const next = current.children.find(
-      (child) => child.id.toLowerCase() === wanted || child.name.toLowerCase() === wanted,
-    )
-    if (!next) return null
-    chain.push(next)
-  }
-  return chain
-}
-
-/** Where a shortcut leads: the app it opens, or the chain of the node it points to (null if that's gone). */
-export function shortcutTarget(root: FsDir, node: FsFile): { app: AppId } | { chain: FsNode[] } | null {
-  if (!node.shortcut) return null
-  const target: { app?: AppId; path?: string } = SHORTCUTS[node.shortcut]
-  if (target.app) return { app: target.app }
-  const chain = target.path ? walk(root, target.path) : null
-  return chain ? { chain } : null
-}
-
-/** The canonical (id-based) path of a chain returned by `walk`. */
-export function chainPath(chain: FsNode[]): string {
-  return `/${chain
-    .slice(1)
-    .map((node) => node.id)
-    .join('/')}`
-}
+// Analytics
 
 /**
  * `path` as it may be sent to analytics: a path through the visitor's own
  * files or folders is cut at the first of them, so their names never leave the browser.
  */
 export function publicPath(path: string): string {
-  const chain = walk(getFs(settings.get().locale), path)
-  const own = chain?.findIndex((node) => node.key !== undefined) ?? -1
-  return chain && own !== -1 ? `${chainPath(chain.slice(0, own))}/*`.replace('//', '/') : path
+  let chain: Entry[]
+  try {
+    chain = vfs.chain(path, { follow: false })
+  } catch {
+    return path
+  }
+  const own = chain.findIndex((entry) => entry.inode.layer === 'upper')
+  if (own === -1) return chain.at(-1)!.path
+  return `${chain[own - 1].path}/*`.replace('//', '/')
 }
 
-/** App arguments with their path made public (see publicPath), for the app_opened event. */
-export function publicArgs<T extends { path?: string }>(args?: T): T | undefined {
-  return args?.path ? { ...args, path: publicPath(args.path) } : args
+/** App arguments with their paths made public (see publicPath), for the app_opened event. */
+export function publicArgs(args: { files?: string[]; url?: string }): { path?: string; url?: string } {
+  return {
+    ...(args.files?.[0] && { path: publicPath(args.files[0]) }),
+    ...(args.url && { url: args.url }),
+  }
 }
 
-export function joinPath(parent: string, id: string): string {
-  return `${parent === '/' ? '' : parent}/${id}`
+/** The file types the analytics have always used, from a mime type. */
+export function legacyFileType(mime: string): FileType {
+  if (mime === SYMLINK_MIME || mime === LAUNCHER_MIME) return 'shortcut'
+  if (mime === 'application/pdf') return 'resume'
+  if (mime === 'text/markdown') return 'markdown'
+  if (mime.startsWith('image/')) return 'image'
+  if (mime === URL_MIME) return 'link'
+  return 'text'
 }
 
-export function childPath(parent: string, child: FsNode): string {
-  return joinPath(parent, child.id)
+// What apps get as `os.fs`: the VFS, with each change reported to analytics
+// as coming from `source` (the app that made it).
+
+export type FsApi = ReturnType<typeof fsApi>
+
+const kindOf = (path: string) => {
+  const kind = vfs.lookup(path, { follow: false })?.inode.kind
+  return kind === 'dir' ? 'folder' : kind === 'symlink' ? 'symlink' : 'file'
 }
 
-/** The folder part and the last segment of a path, as typed: `a/b/c.txt` → [`a/b`, `c.txt`]. */
-export function splitPath(path: string): [string, string] {
-  const trimmed = path.replace(/\/+$/, '')
-  const slash = trimmed.lastIndexOf('/')
-  if (slash === -1) return ['.', trimmed]
-  return [trimmed.slice(0, slash) || '/', trimmed.slice(slash + 1)]
-}
+const sizeOf = (content: string | Blob) => (typeof content === 'string' ? content.length : content.size)
 
-export function visibleChildren(node: FsDir): FsNode[] {
-  return node.children.filter((child) => child.kind === 'file' || !child.hidden)
+export function fsApi(source: FileSource) {
+  return {
+    // Synchronous: from the cache.
+    stat: (path: string, options?: ResolveOptions) => vfs.stat(path, options),
+    lstat: (path: string, options?: Omit<ResolveOptions, 'follow'>) => vfs.lstat(path, options),
+    lookup: (path: string, options?: ResolveOptions) => vfs.lookup(path, options),
+    chain: (path: string, options?: ResolveOptions) => vfs.chain(path, options),
+    readdir: (path: string, options?: ResolveOptions & { all?: boolean }) => vfs.readdir(path, options),
+    readlink: (path: string, options?: Omit<ResolveOptions, 'follow'>) => vfs.readlink(path, options),
+    realpath: (path: string, options?: Omit<ResolveOptions, 'follow'>) => vfs.realpath(path, options),
+    displayName: (path: string) => vfs.displayName(path),
+    canCreateIn: (path: string) => vfs.canCreateIn(path),
+    /** Hook: re-renders when the file system changes. */
+    useWatch: useFsVersion,
+    mounts: () => vfs.drivers,
+
+    // Asynchronous.
+    readFile: (path: string, options?: Omit<ResolveOptions, 'follow'>): Promise<Content> => vfs.readFile(path, options),
+    async writeFile(path: string, content: string | Blob, options?: { cwd?: string }) {
+      const existed = vfs.lookup(path, options) !== null
+      const written = await vfs.writeFile(path, content, options)
+      if (existed) track('file_saved', { characters: sizeOf(content) })
+      else track('file_created', { kind: 'file', source })
+      return written
+    },
+    async create(
+      path: string,
+      options?: { kind?: 'file' | 'dir'; unique?: boolean; content?: string | Blob; extension?: boolean; cwd?: string },
+    ) {
+      const created = await vfs.create(path, options)
+      track('file_created', { kind: options?.kind === 'dir' ? 'folder' : 'file', source })
+      return created
+    },
+    async mkdir(path: string, options?: { cwd?: string; unique?: boolean }) {
+      const created = await vfs.mkdir(path, options)
+      track('file_created', { kind: 'folder', source })
+      return created
+    },
+    async symlink(target: string, path: string, options?: { cwd?: string }) {
+      const created = await vfs.symlink(target, path, options)
+      track('file_created', { kind: 'symlink', source })
+      return created
+    },
+    touch: (path: string, options?: { cwd?: string }) => {
+      const existed = vfs.lookup(path, { ...options, follow: false }) !== null
+      return vfs.touch(path, options).then((touched) => {
+        if (!existed) track('file_created', { kind: 'file', source })
+        return touched
+      })
+    },
+    async rename(from: string, to: string, options?: { cwd?: string }) {
+      const kind = kindOf(from)
+      const renamed = await vfs.rename(from, to, options)
+      track('file_renamed', { kind })
+      return renamed
+    },
+    async move(paths: string[], target: string, options?: { unique?: boolean; cwd?: string }) {
+      const items = await vfs.move(paths, target, options)
+      if (items > 0) track('file_moved', { items, source })
+      return items
+    },
+    async trash(paths: string[], options?: { cwd?: string }) {
+      const items = await vfs.trash(paths, options)
+      if (items > 0) track('file_deleted', { items, permanent: false, source })
+      return items
+    },
+    async restore(paths: string[]) {
+      const items = await vfs.restore(paths)
+      if (items > 0) track('file_restored', { items })
+      return items
+    },
+    async remove(paths: string[], options?: { cwd?: string }) {
+      const items = await vfs.remove(paths, options)
+      if (items > 0) track('file_deleted', { items, permanent: true, source })
+      return items
+    },
+    async emptyTrash() {
+      const items = await vfs.emptyTrash()
+      if (items > 0) track('trash_emptied', { items })
+      return items
+    },
+  }
 }

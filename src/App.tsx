@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useSyncExternalStore } from 'react'
 import { setContext } from './analytics.ts'
-import { DialogHost } from './components/DialogHost.tsx'
+import { DialogHost } from './shells/DialogHost.tsx'
+import { FileDialogHost } from './shells/FileDialog.tsx'
 
 // Each shell is its own chunk: a phone never downloads the window manager,
 // and a computer never downloads the phone interface.
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <>
       <Suspense fallback={null}>{mobile ? <MobileShell /> : <DesktopShell />}</Suspense>
+      <FileDialogHost />
       <DialogHost />
     </>
   )
