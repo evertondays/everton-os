@@ -533,8 +533,12 @@
 .menu-apps {
   flex: 1;
   min-height: 0;
-  padding: 4px 8px;
+  padding: 4px 2px 4px 8px;
   overflow: auto;
+  /* The bar's room is kept, so the list doesn't shift when a search makes it fit.
+     (It can't hide until hovered: Chromium styles a scrollbar once, when it's made.) */
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .menu-apps button {

@@ -21,6 +21,8 @@
   --active: rgba(0, 0, 0, 0.11);
   --glass: rgba(246, 247, 249, 0.82);
   --shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 14px 36px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.12);
+  --scrollbar: rgba(0, 0, 0, 0.22);
+  --scrollbar-hover: rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme='dark'] {
@@ -36,6 +38,8 @@
   --active: rgba(255, 255, 255, 0.15);
   --glass: rgba(30, 33, 38, 0.82);
   --shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --scrollbar: rgba(255, 255, 255, 0.2);
+  --scrollbar-hover: rgba(255, 255, 255, 0.36);
 }
 
 *,
@@ -76,6 +80,41 @@ ul,
 ol {
   padding: 0;
   list-style: none;
+}
+
+/* Scrollbars: thin rounded thumbs on a clear track, in the theme's colors.
+   Chromium and Safari draw them from the ::-webkit-scrollbar parts (the border
+   insets the thumb); Firefox only has the standard properties. */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
+}
+
+::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
 }
 
 button,
