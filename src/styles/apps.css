@@ -167,6 +167,14 @@
   user-select: text;
 }
 
+/* Plain text opened in the Viewer. */
+.viewer-text {
+  margin: 0;
+  font: 13px/1.55 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .paper a,
 :root[data-theme='dark'] .paper a {
   color: #0b7fc0;
@@ -505,6 +513,10 @@
   font-weight: 600;
 }
 
+.terminal-link {
+  color: #45d6c4;
+}
+
 .terminal-line {
   display: flex;
   gap: 8px;
@@ -544,6 +556,13 @@
   border-radius: 10px;
   background: var(--surface-2);
   text-align: left;
+}
+
+/* While an image loads. */
+.gallery-blank {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
 }
 
 .gallery-grid img {

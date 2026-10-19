@@ -24,10 +24,11 @@ export type SettingsSource = 'panel' | 'settings' | 'terminal'
 /** Where a contact detail was reached. */
 export type ContactSource = 'contact_app' | 'about' | 'resume'
 
-/** Where the visitor created or deleted a file or folder. */
-export type FileSource = 'desktop' | 'files' | 'terminal' | 'editor'
+/** Where the visitor created or deleted a file or folder: the desktop, or the app that did it. */
+export type FileSource = 'desktop' | 'files' | 'terminal' | 'editor' | (string & {})
 
-type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text' | 'shortcut'
+/** The kind of file, as the analytics have always named it (see legacyFileType in system/fs.ts). */
+export type FileType = 'resume' | 'markdown' | 'image' | 'link' | 'text' | 'shortcut'
 
 type None = Record<never, never>
 
@@ -76,20 +77,24 @@ export interface AnalyticsEvents {
 
   // Files and Viewer
   folder_opened: { path: string; method: 'item' | 'back' | 'up' | 'breadcrumb' | 'sidebar' | 'address_bar' }
-  file_opened: { path: string; file_type: FileType; source: 'files' | 'terminal' | 'desktop_icon' }
+  file_opened: { path: string; file_type: FileType; mime: string; source: AppSource }
+  /** Opened with an app other than the default, from "Open with". */
+  file_opened_with: { app: AppId; mime: string }
   project_resource_opened: { project: string; resource: string; resource_type: FileType | 'project' }
   resume_viewed: { format: 'pdf' | 'page' }
   file_downloaded: { file: string; file_type: FileType; export_method: 'download' | 'print' }
   external_link_clicked: { url: string; source: 'markdown' }
 
   // The visitor's own files: never their names or what they wrote (paths go through publicPath).
-  file_created: { kind: 'file' | 'folder'; source: FileSource }
-  file_renamed: { kind: 'file' | 'folder' }
+  file_created: { kind: 'file' | 'folder' | 'symlink'; source: FileSource }
+  file_renamed: { kind: 'file' | 'folder' | 'symlink' }
   file_moved: { items: number; source: FileSource }
   file_saved: { characters: number }
   file_deleted: { items: number; permanent: boolean; source: FileSource }
   file_restored: { items: number }
   trash_emptied: { items: number }
+  /** Once per visitor whose files were moved from the first version's storage. */
+  fs_migrated: { from: string }
 
   // Browser
   browser_navigated: { host: string; method: 'address_bar' | 'bookmark' | 'home_tile'; framed: boolean }
@@ -100,6 +105,7 @@ export interface AnalyticsEvents {
 
   // Terminal
   terminal_command_run: { command: string; known: boolean }
+  process_killed: { app: AppId }
 
   // Gallery
   gallery_photo_opened: { photo: string; album: string }

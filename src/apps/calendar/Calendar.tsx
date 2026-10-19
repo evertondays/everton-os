@@ -1,7 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { type PointerEvent, useRef, useState } from 'react'
-import { track } from '../analytics.ts'
-import { useLocale, useT } from '../i18n/index.ts'
+import { track } from '../../analytics.ts'
 import {
   type Month,
   addMonths,
@@ -13,9 +12,11 @@ import {
   relativeDay,
   sameDay,
   sameMonth,
+  useClock,
+  useLocale,
+  useT,
   weekdayNames,
-} from '../system/calendar.ts'
-import { useClock } from '../system/useClock.ts'
+} from '../../sdk/index.ts'
 
 /** Horizontal travel (px) that turns a touch into a swipe to the next or previous month. */
 const SWIPE_DISTANCE = 50

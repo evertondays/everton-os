@@ -70,7 +70,7 @@ export function CalendarFlyout({ onClose }: { onClose(): void }) {
   }
 
   return (
-    <div className="calendar-flyout" ref={box} role="dialog" aria-label={t('app.calendar')}>
+    <div className="calendar-flyout" ref={box} role="dialog" aria-label={t('calendar.title')}>
       <div className="calendar-flyout-head">
         <div className="calendar-flyout-now">
           <time className="calendar-flyout-clock" dateTime={now.toISOString()}>

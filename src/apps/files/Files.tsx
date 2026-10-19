@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   ArrowLeft,
   ArrowUp,
   Check,
@@ -6,11 +7,8 @@ import {
   Copy,
   ExternalLink,
   FilePlus,
-  FileText,
-  FileUser,
   Folder,
   FolderPlus,
-  Globe,
   House,
   type LucideIcon,
   Monitor,
@@ -20,67 +18,45 @@ import {
   Trash2,
 } from 'lucide-react'
 import { type DragEvent, type FormEvent, type KeyboardEvent, type MouseEvent, useEffect, useState } from 'react'
-import { type AnalyticsEvents, track } from '../analytics.ts'
-import { AppIcon } from '../components/AppIcon.tsx'
-import { ContextMenu, type MenuItem, type MenuState } from '../components/ContextMenu.tsx'
-import { NameField, RenameField } from '../components/NameField.tsx'
-import { useT } from '../i18n/index.ts'
-import { type AppProps, shortcutIcons } from '../system/apps.ts'
-import { confirmDialog } from '../system/dialog.ts'
+import { type AnalyticsEvents, track } from '../../analytics.ts'
+import { ContextMenu, type MenuItem, type MenuState } from '../../components/ContextMenu.tsx'
+import { FileGlyph } from '../../components/FileGlyph.tsx'
+import { NameField, RenameField } from '../../components/NameField.tsx'
 import {
-  FILE_DRAG_TYPE,
-  canCreateIn,
-  canModify,
-  createNode,
-  draggedPaths,
-  emptyTrash,
-  fsErrorMessage,
-  isFileDrag,
-  isUserNode,
-  moveNodes,
-  purgeNodes,
-  renameNode,
-  restoreNodes,
-  trashNodes,
-} from '../system/fileOps.ts'
-import {
+  type AppProps,
   DESKTOP_PATH,
-  type FsNode,
+  type Entry,
+  FILE_DRAG_TYPE,
+  LAUNCHER_MIME,
   PROJECTS_PATH,
   TRASH_PATH,
-  chainPath,
-  childPath,
+  basename,
+  canModify,
+  draggedPaths,
+  dirname,
+  fsErrorMessage,
+  isFileDrag,
+  isInside,
+  isOwn,
+  joinPath,
+  legacyFileType,
   publicPath,
-  shortcutTarget,
-  splitPath,
-  useFs,
-  visibleChildren,
-  walk,
-} from '../system/fs.ts'
-import { openNode, useAppWindow, useOS } from '../system/os.ts'
-import { isInside } from '../system/userFs.ts'
+  useAppWindow,
+  useOS,
+  useT,
+} from '../../sdk/index.ts'
 
 type FolderMethod = AnalyticsEvents['folder_opened']['method']
 
 /** How long the copy button shows it worked (ms). */
 const COPIED_TIMEOUT = 1500
 
-function NodeIcon({ node, size }: { node: FsNode; size: number }) {
-  if (node.kind === 'dir') return <Folder className="file-icon is-folder" size={size} strokeWidth={1.5} />
-  if (node.type === 'image') return <img className="file-thumbnail" src={node.src} alt="" style={{ height: size }} />
-  if (node.type === 'resume') return <FileUser className="file-icon is-resume" size={size} strokeWidth={1.5} />
-  if (node.type === 'link') return <Globe className="file-icon is-link" size={size} strokeWidth={1.5} />
-  if (node.type === 'text') return <FileText className="file-icon is-text" size={size} strokeWidth={1.5} />
-  if (node.shortcut) return <AppIcon app={shortcutIcons[node.shortcut]} size={size - 6} />
-  return <FileText className="file-icon" size={size} strokeWidth={1.5} />
-}
-
 export default function Files({ args }: AppProps) {
   const t = useT()
-  const fs = useFs()
   const os = useOS()
   const appWindow = useAppWindow()
-  const [path, setPath] = useState(args?.path ?? '/')
+  os.fs.useWatch()
+  const [path, setPath] = useState(args.files?.[0] ?? '/')
   const [history, setHistory] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -93,21 +69,22 @@ export default function Files({ args }: AppProps) {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
 
   // Fall back to the home folder if the path stops resolving.
-  const found = walk(fs, path)
-  const chain = found && found.at(-1)!.kind === 'dir' ? found : [fs]
-  const current = chain.at(-1)!
-  const here = chainPath(chain)
-  const items = current.kind === 'dir' ? visibleChildren(current) : []
-  const mobile = os.shell === 'mobile'
+  const found = os.fs.lookup(path)
+  const here = found?.inode.kind === 'dir' ? found.path : '/'
   const inTrash = isInside(here, TRASH_PATH)
-  const writable = canCreateIn(here)
-  const selectedNode = items.find((node) => node.id === selected) ?? null
-  const trash = walk(fs, TRASH_PATH)?.at(-1)
-  const trashHasOwn = trash?.kind === 'dir' && trash.children.some(isUserNode)
+  const fullChain = os.fs.chain(here)
+  // In the Trash, the path starts at the Trash, like trash:/// in a file manager.
+  const chain = inTrash ? fullChain.slice(fullChain.findIndex((entry) => entry.path === TRASH_PATH)) : fullChain
+  const current = chain.at(-1)!
+  const items = os.fs.readdir(here)
+  const mobile = os.shell === 'mobile'
+  const writable = os.fs.canCreateIn(here)
+  const selectedEntry = items.find((entry) => entry.name === selected) ?? null
+  const trashHasItems = os.fs.readdir(TRASH_PATH).length > 0
 
   useEffect(() => {
-    appWindow.setTitle(current.name)
-  }, [appWindow, current.name])
+    appWindow.setTitle(current.displayName)
+  }, [appWindow, current.displayName])
 
   useEffect(() => {
     if (!copied) return
@@ -123,31 +100,38 @@ export default function Files({ args }: AppProps) {
     setRenaming(null)
   }
 
+  /** Runs a file operation, showing why if it's refused. */
+  const attempt = async (action: () => Promise<unknown>) => {
+    try {
+      await action()
+      setError(null)
+    } catch (caught) {
+      setError(fsErrorMessage(t, caught))
+    }
+  }
+
   /** Goes to the path typed in the address bar: a folder opens here, a file in its app. */
   const submitPath = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const typed = String(new FormData(event.currentTarget).get('path') ?? '').trim()
-    const target = walk(fs, typed || '/', here)
+    const target = os.fs.lookup(typed || '/', { cwd: here })
     if (!target) {
       setError(t('fs.error.notFound', { name: typed }))
       return
     }
     setError(null)
     setEditingPath(false)
-    const node = target.at(-1)!
-    const to = chainPath(target)
-    if (node.kind === 'dir') {
-      if (to !== here) go(to, 'address_bar')
+    if (target.inode.kind === 'dir') {
+      if (target.path !== here) go(target.path, 'address_bar')
     } else {
-      openNode(os, node, to, 'files')
+      void attempt(() => os.openFile(target.path, 'files'))
     }
   }
 
-  /** The folder files dropped on `node` go into: the folder itself, or the one a shortcut points to. */
-  const folderOf = (node: FsNode): string | null => {
-    if (node.kind === 'dir') return childPath(here, node)
-    const target = shortcutTarget(fs, node)
-    return target && 'chain' in target && target.chain.at(-1)!.kind === 'dir' ? chainPath(target.chain) : null
+  /** The folder files dropped on `entry` go into: the folder itself, or the one a shortcut points to. */
+  const folderOf = (entry: Entry): string | null => {
+    const target = entry.inode.kind === 'symlink' ? os.fs.lookup(entry.path) : entry
+    return target?.inode.kind === 'dir' ? target.path : null
   }
 
   /** Drop handlers that put files dragged from a Files window into `folder`; the Trash deletes them. */
@@ -166,7 +150,7 @@ export default function Files({ args }: AppProps) {
       setDropTarget(null)
       const paths = draggedPaths(event.dataTransfer)
       if (paths.length === 0) return
-      attempt(() => (folder === TRASH_PATH ? trashNodes(paths, 'files') : moveNodes(paths, folder, 'files')))
+      void attempt(() => (folder === TRASH_PATH ? os.fs.trash(paths) : os.fs.move(paths, folder)))
       setSelected(null)
     },
   })
@@ -190,109 +174,116 @@ export default function Files({ args }: AppProps) {
     setRenaming(null)
   }
 
-  const open = (node: FsNode) => {
-    const target = childPath(here, node)
+  const open = (entry: Entry, using?: string) => {
     // Only the résumé's own projects: what visitors make in there is theirs, and so are its names.
-    if (target.startsWith(`${PROJECTS_PATH}/`) && !isUserNode(node) && !chain.some(isUserNode)) {
+    if (entry.path.startsWith(`${PROJECTS_PATH}/`) && !isOwn(entry) && !chain.some(isOwn)) {
       track('project_resource_opened', {
-        project: target.split('/')[2],
-        resource: node.id,
-        resource_type: node.kind === 'dir' ? 'project' : node.type,
+        project: entry.path.split('/')[2],
+        resource: entry.name,
+        resource_type: entry.inode.kind === 'dir' ? 'project' : legacyFileType(entry.mime),
       })
     }
-    if (node.kind === 'dir') go(target, 'item')
-    else openNode(os, node, target, 'files')
-  }
-
-  /** Runs a file operation, showing why if it's refused. */
-  const attempt = (action: () => void) => {
-    try {
-      action()
-      setError(null)
-    } catch (caught) {
-      setError(fsErrorMessage(t, caught))
-    }
+    const folder = using ? null : folderOf(entry)
+    if (folder) go(folder, 'item')
+    else void attempt(() => os.openFile(entry.path, 'files', { with: using }))
   }
 
   const create = (kind: 'file' | 'dir') =>
-    attempt(() => {
-      const created = createNode(here, kind, t(kind === 'dir' ? 'fs.newFolder' : 'fs.newFile'), 'files')
-      const id = splitPath(created.path)[1]
-      setSelected(id)
-      setRenaming(id)
+    attempt(async () => {
+      const name = t(kind === 'dir' ? 'fs.newFolder' : 'fs.newFile')
+      const created = basename(await os.fs.create(joinPath(here, name), { kind, unique: true }))
+      setSelected(created)
+      setRenaming(created)
     })
 
-  const rename = (node: FsNode, name: string | null) => {
+  const rename = (entry: Entry, name: string | null) => {
     setRenaming(null)
     if (name === null) return
-    attempt(() => setSelected(splitPath(renameNode(childPath(here, node), name))[1]))
+    void attempt(async () => setSelected(basename(await os.fs.rename(entry.path, joinPath(here, name)))))
   }
 
-  const remove = (node: FsNode) =>
-    attempt(() => {
-      trashNodes([childPath(here, node)], 'files')
+  const remove = (entry: Entry) =>
+    attempt(async () => {
+      await os.fs.trash([entry.path])
       setSelected(null)
     })
 
-  const restore = (node: FsNode) =>
-    attempt(() => {
-      restoreNodes([childPath(here, node)])
+  const restore = (entry: Entry) =>
+    attempt(async () => {
+      await os.fs.restore([entry.path])
       setSelected(null)
     })
 
-  const purge = async (node: FsNode) => {
-    const confirmed = await confirmDialog({
+  const purge = async (entry: Entry) => {
+    const confirmed = await os.dialog.confirm({
       title: t('action.purge'),
-      message: t('action.confirmPurge', { name: node.name }),
+      message: t('action.confirmPurge', { name: entry.displayName }),
       confirm: t('action.purge'),
       cancel: t('common.cancel'),
       danger: true,
     })
     if (!confirmed) return
-    attempt(() => {
-      purgeNodes([childPath(here, node)], 'files')
+    await attempt(async () => {
+      await os.fs.remove([entry.path])
       setSelected(null)
     })
   }
 
   const empty = async () => {
-    const confirmed = await confirmDialog({
+    const confirmed = await os.dialog.confirm({
       title: t('action.emptyTrash'),
       message: t('action.confirmEmpty'),
       confirm: t('action.emptyTrash'),
       cancel: t('common.cancel'),
       danger: true,
     })
-    if (confirmed) attempt(emptyTrash)
+    if (confirmed) await attempt(() => os.fs.emptyTrash())
   }
 
-  const itemActions = (node: FsNode): MenuItem[] => {
-    const own = canModify(node)
+  /** "Open with" entries: the apps besides the default one that open the file (or what a link points to). */
+  const openWith = (entry: Entry): MenuItem[] => {
+    const target = entry.inode.kind === 'symlink' ? os.fs.lookup(entry.path) : entry
+    if (!target || target.inode.kind === 'dir' || target.mime === LAUNCHER_MIME) return []
+    return os.apps
+      .forMime(target.mime)
+      .slice(1)
+      .map((app) => ({
+        label: t('action.openWith', { app: app.name }),
+        icon: AppWindow,
+        onSelect: () => open(entry, app.id),
+      }))
+  }
+
+  const itemActions = (entry: Entry): MenuItem[] => {
+    const own = canModify(entry)
     if (inTrash) {
       return own
         ? [
-            { label: t('action.restore'), icon: RotateCcw, onSelect: () => restore(node) },
-            { label: t('action.purge'), icon: Trash2, onSelect: () => purge(node), danger: true },
+            { label: t('action.restore'), icon: RotateCcw, onSelect: () => void restore(entry) },
+            { label: t('action.purge'), icon: Trash2, onSelect: () => void purge(entry), danger: true },
           ]
-        : [{ label: t('action.open'), icon: ExternalLink, onSelect: () => open(node) }]
+        : [{ label: t('action.open'), icon: ExternalLink, onSelect: () => open(entry) }]
     }
     return [
-      { label: t('action.open'), icon: ExternalLink, onSelect: () => open(node) },
+      { label: t('action.open'), icon: ExternalLink, onSelect: () => open(entry) },
+      ...openWith(entry),
       ...(own
         ? [
-            { label: t('action.rename'), icon: Pencil, onSelect: () => setRenaming(node.id) },
-            { label: t('action.delete'), icon: Trash2, onSelect: () => remove(node) },
+            { label: t('action.rename'), icon: Pencil, onSelect: () => setRenaming(entry.name) },
+            { label: t('action.delete'), icon: Trash2, onSelect: () => void remove(entry) },
           ]
         : []),
     ]
   }
 
   const folderActions = (): MenuItem[] => {
-    if (inTrash) return [{ label: t('action.emptyTrash'), icon: Trash2, onSelect: empty, disabled: !trashHasOwn }]
+    if (inTrash) {
+      return [{ label: t('action.emptyTrash'), icon: Trash2, onSelect: () => void empty(), disabled: !trashHasItems }]
+    }
     if (!writable) return []
     return [
-      { label: t('action.newFile'), icon: FilePlus, onSelect: () => create('file') },
-      { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => create('dir') },
+      { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file') },
+      { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir') },
     ]
   }
 
@@ -303,30 +294,28 @@ export default function Files({ args }: AppProps) {
   }
 
   const onGridKeyDown = (event: KeyboardEvent) => {
-    if (!selectedNode || !canModify(selectedNode) || renaming) return
+    if (!selectedEntry || !canModify(selectedEntry) || renaming) return
     if (event.key === 'Delete') {
       event.preventDefault()
-      if (inTrash || event.shiftKey) purge(selectedNode)
-      else remove(selectedNode)
+      if (inTrash || event.shiftKey) void purge(selectedEntry)
+      else void remove(selectedEntry)
     } else if (event.key === 'F2' && !inTrash) {
       event.preventDefault()
-      setRenaming(selectedNode.id)
+      setRenaming(selectedEntry.name)
     }
   }
 
   const places = [
-    { path: '/', name: fs.name, icon: House },
-    ...visibleChildren(fs)
-      .filter((node) => node.kind === 'dir')
-      .map((node) => ({
-        path: childPath('/', node),
-        name: node.name,
-        icon: childPath('/', node) === DESKTOP_PATH ? Monitor : Folder,
-      })),
-    { path: TRASH_PATH, name: t('fs.trash'), icon: Trash },
+    { path: '/', name: os.fs.displayName('/'), icon: House },
+    ...os.fs
+      .readdir('/')
+      .filter((entry) => entry.inode.kind === 'dir')
+      .map((entry) => ({ path: entry.path, name: entry.displayName, icon: entry.path === DESKTOP_PATH ? Monitor : Folder })),
+    { path: TRASH_PATH, name: os.fs.displayName(TRASH_PATH), icon: Trash },
   ]
 
-  const ownSelected = selectedNode && canModify(selectedNode)
+  const ownSelected = selectedEntry && canModify(selectedEntry)
+  const upTo = inTrash && here === TRASH_PATH ? null : dirname(here)
 
   return (
     <div className="app files">
@@ -336,8 +325,8 @@ export default function Files({ args }: AppProps) {
         </button>
         <button
           className="icon-button"
-          onClick={() => go(chainPath(chain.slice(0, -1)), 'up')}
-          disabled={chain.length === 1}
+          onClick={() => upTo && go(upTo, 'up')}
+          disabled={here === '/' || upTo === null}
           aria-label={t('files.up')}
         >
           <ArrowUp size={17} />
@@ -376,18 +365,18 @@ export default function Files({ args }: AppProps) {
               if (event.target === event.currentTarget) setEditingPath(true)
             }}
           >
-            {chain.map((node, index) => {
+            {chain.map((entry, index) => {
               const last = index === chain.length - 1
               return (
-                <span key={index}>
+                <span key={entry.path}>
                   {index > 0 && <ChevronRight size={14} />}
                   <button
                     aria-current={last ? 'page' : undefined}
-                    className={dropTarget === chainPath(chain.slice(0, index + 1)) ? 'is-drop-target' : undefined}
-                    onClick={() => (last ? setEditingPath(true) : go(chainPath(chain.slice(0, index + 1)), 'breadcrumb'))}
-                    {...(last ? {} : dropInto(chainPath(chain.slice(0, index + 1))))}
+                    className={dropTarget === entry.path ? 'is-drop-target' : undefined}
+                    onClick={() => (last ? setEditingPath(true) : go(entry.path, 'breadcrumb'))}
+                    {...(last ? {} : dropInto(entry.path))}
                   >
-                    {node.name}
+                    {entry.displayName}
                   </button>
                 </span>
               )
@@ -398,11 +387,11 @@ export default function Files({ args }: AppProps) {
           <>
             {ownSelected && (
               <>
-                <ToolbarButton icon={RotateCcw} label={t('action.restore')} onClick={() => restore(selectedNode)} />
-                <ToolbarButton icon={Trash2} label={t('action.purge')} onClick={() => purge(selectedNode)} />
+                <ToolbarButton icon={RotateCcw} label={t('action.restore')} onClick={() => void restore(selectedEntry)} />
+                <ToolbarButton icon={Trash2} label={t('action.purge')} onClick={() => void purge(selectedEntry)} />
               </>
             )}
-            <button className="button" onClick={empty} disabled={!trashHasOwn}>
+            <button className="button" onClick={() => void empty()} disabled={!trashHasItems}>
               {t('action.emptyTrash')}
             </button>
           </>
@@ -410,14 +399,14 @@ export default function Files({ args }: AppProps) {
           <>
             {ownSelected && (
               <>
-                <ToolbarButton icon={Pencil} label={t('action.rename')} onClick={() => setRenaming(selectedNode.id)} />
-                <ToolbarButton icon={Trash2} label={t('action.delete')} onClick={() => remove(selectedNode)} />
+                <ToolbarButton icon={Pencil} label={t('action.rename')} onClick={() => setRenaming(selectedEntry.name)} />
+                <ToolbarButton icon={Trash2} label={t('action.delete')} onClick={() => void remove(selectedEntry)} />
               </>
             )}
             {writable && (
               <>
-                <ToolbarButton icon={FilePlus} label={t('action.newFile')} onClick={() => create('file')} />
-                <ToolbarButton icon={FolderPlus} label={t('action.newFolder')} onClick={() => create('dir')} />
+                <ToolbarButton icon={FilePlus} label={t('action.newFile')} onClick={() => void create('file')} />
+                <ToolbarButton icon={FolderPlus} label={t('action.newFolder')} onClick={() => void create('dir')} />
               </>
             )}
           </>
@@ -465,44 +454,44 @@ export default function Files({ args }: AppProps) {
             onContextMenu={(event) => openMenu(event, folderActions())}
             onKeyDown={onGridKeyDown}
           >
-            {items.map((node) => (
-              <li key={node.id}>
-                {renaming === node.id ? (
+            {items.map((entry) => (
+              <li key={entry.name}>
+                {renaming === entry.name ? (
                   <div className="file is-selected">
-                    <NodeIcon node={node} size={46} />
+                    <FileGlyph entry={entry} size={46} />
                     <RenameField
-                      name={node.name}
-                      keepExtension={node.kind === 'file'}
-                      onDone={(name) => rename(node, name)}
+                      name={entry.name}
+                      keepExtension={entry.inode.kind === 'file'}
+                      onDone={(name) => rename(entry, name)}
                     />
                   </div>
                 ) : (
                   <button
-                    className={`file${selected === node.id ? ' is-selected' : ''}${
-                      dropTarget !== null && dropTarget === folderOf(node) ? ' is-drop-target' : ''
+                    className={`file${selected === entry.name ? ' is-selected' : ''}${
+                      dropTarget !== null && dropTarget === folderOf(entry) ? ' is-drop-target' : ''
                     }`}
-                    // The visitor's own files and folders can be dragged into folders, here, in another window or on the desktop.
-                    draggable={!mobile && isUserNode(node)}
+                    // The visitor's own things can be dragged into folders, here, in another window or on the desktop.
+                    draggable={!mobile && isOwn(entry)}
                     onDragStart={(event) => {
-                      setSelected(node.id)
-                      event.dataTransfer.setData(FILE_DRAG_TYPE, JSON.stringify([childPath(here, node)]))
+                      setSelected(entry.name)
+                      event.dataTransfer.setData(FILE_DRAG_TYPE, JSON.stringify([entry.path]))
                       event.dataTransfer.effectAllowed = 'move'
                     }}
-                    {...(folderOf(node) ? dropInto(folderOf(node)!) : {})}
+                    {...(folderOf(entry) ? dropInto(folderOf(entry)!) : {})}
                     // A tap opens on the phone; on the desktop a click selects and a double click opens.
-                    onClick={() => (mobile ? open(node) : setSelected(node.id))}
-                    onDoubleClick={() => !mobile && open(node)}
+                    onClick={() => (mobile ? open(entry) : setSelected(entry.name))}
+                    onDoubleClick={() => !mobile && open(entry)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') open(node)
+                      if (event.key === 'Enter') open(entry)
                     }}
-                    onFocus={() => !mobile && setSelected(node.id)}
+                    onFocus={() => !mobile && setSelected(entry.name)}
                     onContextMenu={(event) => {
-                      setSelected(node.id)
-                      openMenu(event, itemActions(node))
+                      setSelected(entry.name)
+                      openMenu(event, itemActions(entry))
                     }}
                   >
-                    <NodeIcon node={node} size={46} />
-                    <span>{node.name}</span>
+                    <FileGlyph entry={entry} size={46} />
+                    <span>{entry.displayName}</span>
                   </button>
                 )}
               </li>

@@ -1,11 +1,7 @@
 import { ExternalLink, FileUser, Folder, Mail, MapPin } from 'lucide-react'
-import { track } from '../analytics.ts'
-import { Avatar } from '../components/Avatar.tsx'
-import { useResume } from '../data/resume.ts'
-import { useLocale, useT } from '../i18n/index.ts'
-import { PROJECTS_PATH, RESUME_PATH } from '../system/fs.ts'
-import { classicUrl } from '../system/media.ts'
-import { useOS } from '../system/os.ts'
+import { track } from '../../analytics.ts'
+import { Avatar } from '../../components/Avatar.tsx'
+import { PROJECTS_PATH, RESUME_PATH, classicUrl, useLocale, useOS, useResume, useT } from '../../sdk/index.ts'
 
 export default function About() {
   const t = useT()
@@ -29,7 +25,7 @@ export default function About() {
           className="button is-primary"
           onClick={() => {
             track('portfolio_cta_selected', { destination: 'resume' })
-            os.open('viewer', 'about', { path: RESUME_PATH })
+            os.exec('viewer', { files: [RESUME_PATH] }, 'about')
           }}
         >
           <FileUser size={16} />
@@ -39,7 +35,7 @@ export default function About() {
           className="button"
           onClick={() => {
             track('portfolio_cta_selected', { destination: 'projects' })
-            os.open('files', 'about', { path: PROJECTS_PATH })
+            os.exec('files', { files: [PROJECTS_PATH] }, 'about')
           }}
         >
           <Folder size={16} />
@@ -49,11 +45,11 @@ export default function About() {
           className="button"
           onClick={() => {
             track('portfolio_cta_selected', { destination: 'contact' })
-            os.open('contact', 'about')
+            os.exec('contact', {}, 'about')
           }}
         >
           <Mail size={16} />
-          {t('app.contact')}
+          {os.apps.get('contact')?.name}
         </button>
       </div>
 

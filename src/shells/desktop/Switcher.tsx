@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
-import { useT } from '../../i18n/index.ts'
-import { apps } from '../../system/apps.ts'
+import { useLocale } from '../../i18n/index.ts'
+import { appName, apps } from '../../system/apps.ts'
 import { useStore } from '../../system/store.ts'
 import { activateWindow, windows, windowsByRecency } from './windows.ts'
 
@@ -12,7 +12,7 @@ import { activateWindow, windows, windowsByRecency } from './windows.ts'
  * Alt+` does the same thing everywhere.
  */
 export function Switcher() {
-  const t = useT()
+  const locale = useLocale()
   const [index, setIndex] = useState<number | null>(null)
   // The key handlers need the current value synchronously.
   const current = useRef<number | null>(null)
@@ -58,8 +58,8 @@ export function Switcher() {
           role="option"
           aria-selected={position === index}
         >
-          <AppIcon app={apps[win.appId]} size={56} />
-          <span>{win.title ?? t(apps[win.appId].name)}</span>
+          <AppIcon app={apps.get(win.appId)!} size={56} />
+          <span>{win.title ?? appName(apps.get(win.appId)!, locale)}</span>
         </div>
       ))}
     </div>

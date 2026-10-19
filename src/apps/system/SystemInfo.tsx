@@ -1,9 +1,6 @@
 import { version as reactVersion } from 'react'
-import { Logo } from '../components/Logo.tsx'
-import { useResume } from '../data/resume.ts'
-import { useT } from '../i18n/index.ts'
-import { useOS } from '../system/os.ts'
-import { useSettings } from '../system/settings.ts'
+import { Logo } from '../../components/Logo.tsx'
+import { useOS, useResume, useSettings, useT } from '../../sdk/index.ts'
 
 const PALETTE = ['#e5484d', '#f0703a', '#ffb14a', '#1fa86a', '#15a6f0', '#5a55e0', '#8548d6', '#6a7482']
 

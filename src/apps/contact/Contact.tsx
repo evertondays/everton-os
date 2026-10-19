@@ -1,9 +1,8 @@
 import { Check, Copy, ExternalLink, Mail, Send } from 'lucide-react'
 import { type FormEvent, useRef, useState } from 'react'
-import { track, useTrackView } from '../analytics.ts'
-import { useResume } from '../data/resume.ts'
-import { posthogLog } from '../posthog-logs.ts'
-import { useT } from '../i18n/index.ts'
+import { track, useTrackView } from '../../analytics.ts'
+import { posthogLog } from '../../posthog-logs.ts'
+import { useResume, useT } from '../../sdk/index.ts'
 
 /**
  * Contact details plus a short form. There is no backend: the form hands the

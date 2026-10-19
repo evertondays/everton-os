@@ -1,7 +1,5 @@
 import { track } from '../analytics.ts'
-import { useResume } from '../data/resume.ts'
-import { useLocale, useT } from '../i18n/index.ts'
-import { formatMonth, formatPeriod } from '../system/format.ts'
+import { formatMonth, formatPeriod, useLocale, useResume, useT } from '../sdk/index.ts'
 
 /** The whole résumé laid out as a printed page, straight from the data. */
 export function ResumeDocument() {

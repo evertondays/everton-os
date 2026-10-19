@@ -13,30 +13,23 @@ import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { ContextMenu, type MenuItem, type MenuState } from '../../components/ContextMenu.tsx'
 import { RenameField } from '../../components/NameField.tsx'
-import { useT } from '../../i18n/index.ts'
-import { type AppDef, apps, shortcutIcons, userNodeIcons } from '../../system/apps.ts'
 import {
+  DESKTOP_PATH,
+  type Entry,
+  TRASH_PATH,
+  type Tile,
   canModify,
-  createNode,
   draggedPaths,
   fsErrorMessage,
   isFileDrag,
-  moveNodes,
-  renameNode,
-  trashNodes,
-} from '../../system/fileOps.ts'
-import {
-  DESKTOP_PATH,
-  type FsNode,
-  TRASH_PATH,
-  chainPath,
-  childPath,
-  shortcutTarget,
-  useFs,
-  visibleChildren,
-  walk,
-} from '../../system/fs.ts'
-import { openNode, useOS } from '../../system/os.ts'
+  isOwn,
+  joinPath,
+  tileFor,
+  useLocale,
+  useOS,
+  useT,
+} from '../../sdk/index.ts'
+import { appName, apps } from '../../system/apps.ts'
 import { PANEL_HEIGHT } from './layout.ts'
 
 // Desktop icons that behave like on Windows: they sit on a grid, a click
@@ -44,16 +37,20 @@ import { PANEL_HEIGHT } from './layout.ts'
 // draws a selection rectangle, and dragging icons moves the whole selection.
 // Where each icon was left is remembered in the browser.
 // Besides the Trash, the icons are what's in the Desktop folder: the shortcuts
-// it starts with and the visitor's own files and folders, which the right-click
-// menu creates, renames and deletes. Dropping icons on a folder moves them in.
+// it starts with (symlinks and launchers) and the visitor's own files and
+// folders, which the right-click menu creates, renames and deletes. Dropping
+// icons on a folder moves them in.
 
 interface DesktopIcon {
+  /** The inode's number, so an icon keeps its place when renamed or moved away and back. */
   id: string
   label: string
-  icon: Pick<AppDef, 'icon' | 'tint'> & { ink?: string }
+  icon: Tile
+  /** A symlink: the icon gets a shortcut's arrow. */
+  link?: boolean
   open(): void
-  /** The visitor's own file or folder this icon stands for. */
-  node?: FsNode
+  /** The file, folder or shortcut this icon stands for. */
+  entry?: Entry
   /** The folder that files dropped on this icon go into (the Trash deletes them). */
   folder?: string
 }
@@ -85,6 +82,7 @@ const MARGIN = 12
 /** Pointer travel (px) before a press becomes a drag. */
 const DRAG_THRESHOLD = 4
 const STORAGE_KEY = 'everton-os:desktop-icons'
+const TRASH_ICON = 'trash'
 
 const cellKey = ({ col, row }: Cell) => `${col}:${row}`
 
@@ -102,9 +100,21 @@ const iconBox = (cell: Cell): Box => {
 
 const overlaps = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 
+/**
+ * The first version keyed icons `user:<key>`, and the shortcuts by their name
+ * (`resume`); now every icon is keyed by its inode, and the shortcuts' are
+ * `shortcut-<name>`.
+ */
+function migrateId(id: string): string {
+  if (id.startsWith('user:')) return id.slice('user:'.length)
+  if (['resume', 'projects', 'contact', 'terminal'].includes(id)) return `shortcut-${id}`
+  return id
+}
+
 function loadLayout(): Layout {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Layout
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Layout
+    return Object.fromEntries(Object.entries(saved).map(([id, cell]) => [migrateId(id), cell]))
   } catch {
     return {}
   }
@@ -183,8 +193,9 @@ function cellAt(x: number, y: number, cols: number, rows: number): Cell {
 
 export function DesktopIcons() {
   const t = useT()
+  const locale = useLocale()
   const os = useOS()
-  const fs = useFs()
+  os.fs.useWatch()
   const [renaming, setRenaming] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -200,43 +211,40 @@ export function DesktopIcons() {
   const [dropHover, setDropHover] = useState<string | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
 
+  /** Runs a file operation, showing why if it's refused. */
+  const attempt = async (action: () => Promise<unknown>) => {
+    try {
+      await action()
+      setError(null)
+    } catch (caught) {
+      setError(fsErrorMessage(t, caught))
+    }
+  }
+
   // The Trash is always here. Everything else is what's in the Desktop folder,
   // starting with the shortcuts (which the visitor may have moved elsewhere).
   const trashIcon: DesktopIcon = {
-    id: 'trash',
-    label: t('app.trash'),
-    icon: apps.trash,
-    open: () => os.open('trash', 'desktop_icon'),
+    id: TRASH_ICON,
+    label: appName(apps.get('trash')!, locale),
+    icon: apps.get('trash')!,
+    open: () => os.exec('trash', {}, 'desktop_icon'),
     folder: TRASH_PATH,
   }
-  const desktop = walk(fs, DESKTOP_PATH)?.at(-1)
-  const nodeIcons: DesktopIcon[] = (desktop?.kind === 'dir' ? visibleChildren(desktop) : []).map((node) => {
-    const open = () => openNode(os, node, childPath(DESKTOP_PATH, node), 'desktop_icon')
-    if (node.kind === 'file' && node.shortcut) {
-      const target = shortcutTarget(fs, node)
-      const targetNode = target && 'chain' in target ? target.chain.at(-1) : undefined
-      return {
-        // The ids the shortcuts had when they were fixed, so they stay where they were left.
-        id: node.shortcut,
-        label: node.name,
-        icon: shortcutIcons[node.shortcut],
-        open,
-        node,
-        folder: target && 'chain' in target && targetNode?.kind === 'dir' ? chainPath(target.chain) : undefined,
-      }
-    }
+  const entryIcons: DesktopIcon[] = os.fs.readdir(DESKTOP_PATH).map((entry) => {
+    const target = entry.inode.kind === 'symlink' ? os.fs.lookup(entry.path) : entry
+    const tile = tileFor(entry)
     return {
-      // By key, so a renamed file stays where it was.
-      id: `user:${node.key ?? node.id}`,
-      label: node.name,
-      icon: userNodeIcons[node.kind],
-      open,
-      node,
-      folder: node.kind === 'dir' ? childPath(DESKTOP_PATH, node) : undefined,
+      id: entry.inode.ino,
+      label: entry.displayName,
+      icon: tile,
+      link: tile.link,
+      open: () => void attempt(() => os.openFile(entry.path, 'desktop_icon')),
+      entry,
+      folder: target?.inode.kind === 'dir' ? target.path : undefined,
     }
   })
-  const isShortcut = (icon: DesktopIcon) => icon.node?.kind === 'file' && icon.node.type === 'shortcut'
-  const icons = [...nodeIcons.filter(isShortcut), trashIcon, ...nodeIcons.filter((icon) => !isShortcut(icon))]
+  const isShortcut = (icon: DesktopIcon) => icon.entry?.inode.flags?.includes('immutable') ?? false
+  const icons = [...entryIcons.filter(isShortcut), trashIcon, ...entryIcons.filter((icon) => !isShortcut(icon))]
   const ids = icons.map((icon) => icon.id)
   const idsKey = ids.join()
 
@@ -268,40 +276,41 @@ export function DesktopIcons() {
     return () => window.clearTimeout(timer)
   }, [error])
 
-  /** Runs a file operation, showing why if it's refused. */
-  const attempt = (action: () => void) => {
-    try {
-      action()
-      setError(null)
-    } catch (caught) {
-      setError(fsErrorMessage(t, caught))
-    }
-  }
-
   /** Selected icons that can be renamed or deleted: the visitor's own, not shortcuts. */
-  const ownSelected = () => icons.filter((icon) => icon.node && canModify(icon.node) && selected.has(icon.id))
+  const ownSelected = () => icons.filter((icon) => icon.entry && canModify(icon.entry) && selected.has(icon.id))
+
+  /** Puts icons in the free cells nearest to a point of the desktop. */
+  const place = (iconIds: string[], at: { x: number; y: number }) => {
+    const next: Layout = { ...layout }
+    const taken = new Set(Object.values(layout).map(cellKey))
+    for (const id of iconIds) {
+      const cell = nearestFree(cellAt(at.x, at.y, grid.cols, grid.rows), taken, grid.cols, grid.rows)
+      next[id] = cell
+      taken.add(cellKey(cell))
+    }
+    setSaved(next)
+    saveLayout(next)
+  }
 
   /** Creates a file or folder in the Desktop folder, in the free cell nearest to where the menu was opened. */
   const create = (kind: 'file' | 'dir', at: { x: number; y: number }) =>
-    attempt(() => {
-      const { key } = createNode(DESKTOP_PATH, kind, t(kind === 'dir' ? 'fs.newFolder' : 'fs.newFile'), 'desktop')
-      const id = `user:${key}`
-      const taken = new Set(ids.map((other) => cellKey(layout[other])))
-      const next = { ...layout, [id]: nearestFree(cellAt(at.x, at.y, grid.cols, grid.rows), taken, grid.cols, grid.rows) }
-      setSaved(next)
-      saveLayout(next)
+    attempt(async () => {
+      const name = t(kind === 'dir' ? 'fs.newFolder' : 'fs.newFile')
+      const path = await os.fs.create(joinPath(DESKTOP_PATH, name), { kind, unique: true })
+      const id = os.fs.lstat(path).inode.ino
+      place([id], at)
       setSelected(new Set([id]))
       setRenaming(id)
     })
 
   const rename = (icon: DesktopIcon, name: string | null) => {
     setRenaming(null)
-    if (name !== null && icon.node) attempt(() => renameNode(childPath(DESKTOP_PATH, icon.node!), name))
+    if (name !== null && icon.entry) void attempt(() => os.fs.rename(icon.entry!.path, joinPath(DESKTOP_PATH, name)))
   }
 
   const remove = (targets: DesktopIcon[]) => {
     if (targets.length === 0) return
-    attempt(() => trashNodes(targets.map((icon) => childPath(DESKTOP_PATH, icon.node!)), 'desktop'))
+    void attempt(() => os.fs.trash(targets.map((icon) => icon.entry!.path)))
     setSelected(new Set())
   }
 
@@ -314,8 +323,8 @@ export function DesktopIcons() {
       x: event.clientX,
       y: event.clientY,
       items: [
-        { label: t('action.newFile'), icon: FilePlus, onSelect: () => create('file', { x, y }) },
-        { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => create('dir', { x, y }) },
+        { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file', { x, y }) },
+        { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir', { x, y }) },
       ],
     })
   }
@@ -327,7 +336,7 @@ export function DesktopIcons() {
     const group = selected.has(icon.id) ? selected : new Set([icon.id])
     setSelected(group)
     const targets = icons.filter((other) => group.has(other.id))
-    const own = targets.filter((other) => other.node && canModify(other.node))
+    const own = targets.filter((other) => other.entry && canModify(other.entry))
     const items: MenuItem[] = [
       { label: t('action.open'), icon: ExternalLink, onSelect: () => targets.forEach((other) => other.open()) },
     ]
@@ -381,13 +390,12 @@ export function DesktopIcons() {
     }
   }
 
-  /**
-   * The folder icon under the pointer that the dragged icons can go into (a
-   * folder of the visitor's, Projects or the Trash), if any of them is the
-   * visitor's own: shortcuts can't be moved.
-   */
+  /** The visitor's things among the dragged icons: the only ones that can go into a folder. */
+  const movable = (dragged: string[]) => icons.filter((icon) => icon.entry && isOwn(icon.entry) && dragged.includes(icon.id))
+
+  /** The folder icon under the pointer that the dragged icons can go into (a folder, a shortcut to one, the Trash). */
   const folderUnder = (dragged: string[], event: PointerEvent): DesktopIcon | null => {
-    if (!icons.some((icon) => icon.node && dragged.includes(icon.id))) return null
+    if (movable(dragged).length === 0) return null
     const { x, y } = localPoint(event)
     return (
       icons.find((icon) => {
@@ -399,10 +407,10 @@ export function DesktopIcons() {
   }
 
   /** Puts files into the folder of `target`: moves them, or deletes them if it's the Trash. */
-  const putInto = (target: DesktopIcon, paths: string[], source: 'desktop' | 'files') => {
+  const putInto = (target: DesktopIcon, paths: string[]) => {
     if (paths.length === 0 || !target.folder) return
-    if (target.folder === TRASH_PATH) attempt(() => trashNodes(paths, source))
-    else attempt(() => moveNodes(paths, target.folder!, source))
+    if (target.folder === TRASH_PATH) void attempt(() => os.fs.trash(paths))
+    else void attempt(() => os.fs.move(paths, target.folder!))
     setSelected(new Set())
   }
 
@@ -422,7 +430,7 @@ export function DesktopIcons() {
     event.preventDefault()
     event.stopPropagation()
     setDropHover(null)
-    putInto(icon, draggedPaths(event.dataTransfer), 'files')
+    putInto(icon, draggedPaths(event.dataTransfer))
   }
 
   const onAreaDragOver = (event: DragEvent) => {
@@ -435,23 +443,13 @@ export function DesktopIcons() {
     const paths = draggedPaths(event.dataTransfer)
     if (paths.length === 0) return
     event.preventDefault()
-    // Moving keeps each node's key, and with it its icon's id.
-    const iconIds = paths.flatMap((path) => {
-      const node = walk(fs, path)?.at(-1)
-      if (node?.kind === 'file' && node.shortcut) return [node.shortcut]
-      return node?.key ? [`user:${node.key}`] : []
+    // Moving keeps each inode, and with it its icon's id.
+    const iconIds = paths.flatMap((path) => os.fs.lookup(path, { follow: false })?.inode.ino ?? [])
+    const at = localPoint(event)
+    void attempt(async () => {
+      await os.fs.move(paths, DESKTOP_PATH)
+      place(iconIds, at)
     })
-    attempt(() => moveNodes(paths, DESKTOP_PATH, 'files'))
-    const { x, y } = localPoint(event)
-    const next: Layout = { ...layout }
-    const taken = new Set(Object.values(layout).map(cellKey))
-    for (const id of iconIds) {
-      const cell = nearestFree(cellAt(x, y, grid.cols, grid.rows), taken, grid.cols, grid.rows)
-      next[id] = cell
-      taken.add(cellKey(cell))
-    }
-    setSaved(next)
-    saveLayout(next)
   }
 
   const onIconPointerMove = (event: PointerEvent) => {
@@ -474,12 +472,9 @@ export function DesktopIcons() {
     setDrag(null)
     const target = current.moved ? folderUnder(current.ids, event) : null
     if (target) {
-      // Shortcuts dragged along can't go in a folder and stay where they were.
-      const own = icons.filter((icon) => icon.node && current.ids.includes(icon.id))
       putInto(
         target,
-        own.map((icon) => childPath(DESKTOP_PATH, icon.node!)),
-        'desktop',
+        movable(current.ids).map((icon) => icon.entry!.path),
       )
     } else if (current.moved) {
       drop(current.ids, event.clientX - current.startX, event.clientY - current.startY)
@@ -561,13 +556,13 @@ export function DesktopIcons() {
       {icons.map((icon) => {
         const { left, top } = iconBox(layout[icon.id])
         const dragging = drag?.ids.includes(icon.id)
-        if (renaming === icon.id && icon.node) {
+        if (renaming === icon.id && icon.entry) {
           return (
             <div key={icon.id} className="desktop-icon is-selected is-renaming" style={{ left, top }}>
-              <AppIcon app={icon.icon} size={52} />
+              <AppIcon app={icon.icon} size={52} link={icon.link} />
               <RenameField
-                name={icon.node.name}
-                keepExtension={icon.node.kind === 'file'}
+                name={icon.entry.name}
+                keepExtension={icon.entry.inode.kind === 'file'}
                 onDone={(name) => rename(icon, name)}
               />
             </div>
@@ -599,7 +594,7 @@ export function DesktopIcons() {
             onDragLeave={() => setDropHover((hover) => (hover === icon.id ? null : hover))}
             onDrop={(event) => onIconDrop(event, icon)}
           >
-            <AppIcon app={icon.icon} size={52} />
+            <AppIcon app={icon.icon} size={52} link={icon.link} />
             <span>{icon.label}</span>
           </button>
         )

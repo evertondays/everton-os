@@ -1,11 +1,7 @@
 import { ArrowLeft, ArrowRight, ExternalLink, Globe, House, Plus, RotateCw, X } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
-import { track } from '../analytics.ts'
-import { useResume } from '../data/resume.ts'
-import { useLocale, useT } from '../i18n/index.ts'
-import type { AppProps } from '../system/apps.ts'
-import { classicUrl } from '../system/media.ts'
-import { useAppWindow } from '../system/os.ts'
+import { track } from '../../analytics.ts'
+import { type AppProps, classicUrl, useAppWindow, useLocale, useOS, useResume, useT } from '../../sdk/index.ts'
 
 // Most big sites refuse to load inside an iframe, and the page would just stay
 // blank. So the browser only frames the sites it knows will work (the projects'
@@ -71,6 +67,7 @@ export default function Browser({ args }: AppProps) {
   const t = useT()
   const locale = useLocale()
   const appWindow = useAppWindow()
+  const os = useOS()
   const resume = useResume()
   const nextId = useRef(1)
   const [tabs, setTabs] = useState<Tab[]>(() => [
@@ -97,8 +94,9 @@ export default function Browser({ args }: AppProps) {
   const title = (target: string) => (target === HOME ? t('browser.newTab') : hostname(target))
 
   useEffect(() => {
-    appWindow.setTitle(url === HOME ? t('app.browser') : hostname(url))
-  }, [appWindow, url, t])
+    appWindow.setTitle(url === HOME ? (os.apps.get('browser')?.name ?? '') : hostname(url))
+    // `t` too: the app's name follows the language.
+  }, [appWindow, url, t, os.apps])
 
   const patch = (change: (tab: Tab) => Partial<Tab>) =>
     setTabs((list) => list.map((tab) => (tab.id === active.id ? { ...tab, ...change(tab) } : tab)))

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
-import { useT } from '../../i18n/index.ts'
-import { apps } from '../../system/apps.ts'
+import { useLocale, useT } from '../../i18n/index.ts'
+import { appName, apps } from '../../system/apps.ts'
 import { useStore } from '../../system/store.ts'
 import { zoneRect } from './snap.ts'
 import { endSnapAssist, snapWindow, windows } from './windows.ts'
@@ -14,6 +14,7 @@ import { endSnapAssist, snapWindow, windows } from './windows.ts'
  */
 export function SnapAssist() {
   const t = useT()
+  const locale = useLocale()
   const assist = useStore(windows, (s) => s.assist)
   const list = useStore(windows, (s) => s.windows)
   const panel = useRef<HTMLDivElement>(null)
@@ -58,8 +59,8 @@ export function SnapAssist() {
               snapWindow(win.id, assist.side)
             }}
           >
-            <AppIcon app={apps[win.appId]} size={44} />
-            <span>{win.title ?? t(apps[win.appId].name)}</span>
+            <AppIcon app={apps.get(win.appId)!} size={44} />
+            <span>{win.title ?? appName(apps.get(win.appId)!, locale)}</span>
           </button>
         ))}
       </div>

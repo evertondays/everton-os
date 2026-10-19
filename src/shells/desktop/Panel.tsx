@@ -4,7 +4,8 @@ import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { Logo } from '../../components/Logo.tsx'
 import { useLocale, useT } from '../../i18n/index.ts'
-import { apps, resumeShortcut } from '../../system/apps.ts'
+import { appName, apps } from '../../system/apps.ts'
+import { tiles } from '../../system/fileUi.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH } from '../../system/fs.ts'
 import { useOS } from '../../system/os.ts'
@@ -71,18 +72,19 @@ export function Panel({
 
       <button
         className="panel-button"
-        onClick={() => os.open('viewer', 'panel', { path: RESUME_PATH })}
+        onClick={() => os.exec('viewer', { files: [RESUME_PATH] }, 'panel')}
         title={t('app.resume')}
         aria-label={t('app.resume')}
       >
-        <AppIcon app={resumeShortcut} size={28} />
+        <AppIcon app={tiles.resume} size={28} />
       </button>
 
       <span className="panel-separator" />
 
       <div className="panel-tasks">
         {list.map((win) => {
-          const title = win.title ?? t(apps[win.appId].name)
+          const app = apps.get(win.appId)!
+          const title = win.title ?? appName(app, locale)
           const focused = win.id === focusedId
           return (
             <button
@@ -99,7 +101,7 @@ export function Panel({
               }}
               title={title}
             >
-              <AppIcon app={apps[win.appId]} size={24} />
+              <AppIcon app={app} size={24} />
               <span>{title}</span>
             </button>
           )

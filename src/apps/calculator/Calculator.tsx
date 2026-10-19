@@ -1,7 +1,6 @@
 import { type KeyboardEvent, useReducer } from 'react'
-import { track } from '../analytics.ts'
-import { useLocale } from '../i18n/index.ts'
-import { useOS } from '../system/os.ts'
+import { track } from '../../analytics.ts'
+import { useLocale, useOS } from '../../sdk/index.ts'
 
 type Operator = '+' | '-' | '×' | '÷'
 

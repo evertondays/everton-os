@@ -1,10 +1,17 @@
 import { Check } from 'lucide-react'
-import { track } from '../analytics.ts'
-import { locales } from '../data/localize.ts'
-import { useLocale, useT } from '../i18n/index.ts'
-import { classicUrl } from '../system/media.ts'
-import { type Theme, setLocale, setTheme, setWallpaper, useSettings } from '../system/settings.ts'
-import { wallpapers } from '../system/wallpapers.ts'
+import { track } from '../../analytics.ts'
+import { locales } from '../../data/localize.ts'
+import {
+  type Theme,
+  classicUrl,
+  setLocale,
+  setTheme,
+  setWallpaper,
+  useLocale,
+  useSettings,
+  useT,
+  wallpapers,
+} from '../../sdk/index.ts'
 
 const THEMES: Theme[] = ['light', 'dark']
 const LANGUAGES = { pt: 'Português', en: 'English' }
