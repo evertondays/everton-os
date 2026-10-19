@@ -175,7 +175,7 @@
         { "pt": "Sistema de arquivos virtual gerado a partir de um único curriculo.json.", "en": "Virtual file system generated from a single curriculo.json." },
         { "pt": "Os mesmos apps rodam em janela no desktop e em tela cheia no celular.", "en": "The same apps run in a window on desktop and full screen on phones." }
       ],
-      "keywords": ["React", "TypeScript", "Vite", "WinBox.js"],
+      "keywords": ["React", "TypeScript", "Vite", "WinBox.js", "IndexedDB", "Vitest"],
       "repos": [{ "url": "https://github.com/evertondays/everton-os" }],
       "images": []
     },

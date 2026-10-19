@@ -194,6 +194,9 @@ const pt = {
   'settings.wallpaper': 'Papel de parede',
   'settings.language': 'Idioma',
   'settings.about': 'Sobre',
+  'settings.version': 'Versão',
+  'settings.stack': 'Tecnologias utilizadas',
+  'settings.github': 'Código-fonte no GitHub',
 
   'browser.newTab': 'Nova aba',
   'browser.forward': 'Avançar',
@@ -405,6 +408,9 @@ const en: Record<TKey, string> = {
   'settings.wallpaper': 'Wallpaper',
   'settings.language': 'Language',
   'settings.about': 'About',
+  'settings.version': 'Version',
+  'settings.stack': 'Built with',
+  'settings.github': 'Source code on GitHub',
 
   'browser.newTab': 'New tab',
   'browser.forward': 'Forward',

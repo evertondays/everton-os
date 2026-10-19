@@ -1,4 +1,4 @@
-import { ExternalLink, FilePlus, FolderPlus, Pencil, Trash2 } from 'lucide-react'
+import { ExternalLink, FilePlus, FolderPlus, Pencil, Settings, Trash2 } from 'lucide-react'
 import {
   type DragEvent,
   type KeyboardEvent,
@@ -329,6 +329,11 @@ export function DesktopIcons() {
       items: [
         { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file', { x, y }) },
         { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir', { x, y }) },
+        {
+          label: appName(apps.get('settings')!, locale),
+          icon: Settings,
+          onSelect: () => os.exec('settings', {}, 'desktop_menu'),
+        },
       ],
     })
   }

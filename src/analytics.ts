@@ -11,6 +11,7 @@ export type AppSource =
   | 'first_visit'
   | 'app_menu'
   | 'desktop_icon'
+  | 'desktop_menu'
   | 'panel'
   | 'home_screen'
   | 'dock'
@@ -38,6 +39,7 @@ export interface AnalyticsEvents {
   portfolio_entered: { entry_point: 'desktop_login' | 'mobile_lock_screen' }
   session_logged_out: { open_windows: number }
   classic_version_opened: { source: 'login' | 'app_menu' | 'about' | 'settings' }
+  source_code_opened: { source: 'settings' }
   theme_changed: { theme: 'light' | 'dark'; source: SettingsSource }
   language_changed: { language: 'pt' | 'en'; source: SettingsSource }
   wallpaper_changed: { wallpaper: string; source: SettingsSource }

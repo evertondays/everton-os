@@ -222,6 +222,10 @@ a.icon-button,
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 96px;
   padding: 5px 14px;
   border-radius: 7px;
