@@ -85,7 +85,10 @@ export function resumeTree(resume: Resume, canonical: Resume, locale: Locale): S
         dir(project.id, project.name, [
           markdown('README.md', projectMarkdown(project, locale)),
           ...(project.demo ? [{ name: 'demo.url', content: project.demo }] : []),
-          ...(project.url ? [{ name: 'repository.url', displayName: `${t('fs.repo')}.url`, content: project.url }] : []),
+          ...project.repos.map((repo) => {
+            const suffix = repo.label ? `-${slug(repo.label)}` : ''
+            return { name: `repository${suffix}.url`, displayName: `${t('fs.repo')}${suffix}.url`, content: repo.url }
+          }),
           ...images(project.images, canonical.projects[index]?.images ?? []),
         ]),
       ),

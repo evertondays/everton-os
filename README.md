@@ -21,6 +21,7 @@ Todo o conteúdo sai de **`src/data/curriculo.json`** (formato baseado no [JSON 
 - `basics.intro`: versão de duas frases do resumo, usada no app Sobre mim. Sem ela, o app mostra `basics.summary` inteiro.
 - Imagens (`projects[].images`, `photos`, `certificates[].image`): `src` é um caminho dentro de `public/` ou uma URL. Sem `src`, é desenhado um placeholder.
 - `projects[].demo`: endereço que o app Navegador abre dentro de uma janela.
+- `projects[].repos`: repositórios do projeto (`{ "url": "…" }`). Quando há mais de um, `label` os diferencia (`"backend"`, `"mobile"`): vira o sufixo do arquivo `.url` e aparece ao lado do link.
 - `meta.pdf`: caminhos dos PDFs do currículo dentro de `public/`, um por idioma (ex.: `{ "pt": "files/curriculo.pdf", "en": "files/resume.pdf" }`). Com `null`, o Visualizador desenha o currículo a partir dos dados e o botão vira "Salvar em PDF" (impressão da versão clássica).
 - `meta.bookmarks`: sites que o Navegador pode abrir em iframe. A maioria dos grandes sites bloqueia isso; só inclua os que funcionam.
 

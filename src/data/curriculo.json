@@ -176,8 +176,67 @@
         { "pt": "Os mesmos apps rodam em janela no desktop e em tela cheia no celular.", "en": "The same apps run in a window on desktop and full screen on phones." }
       ],
       "keywords": ["React", "TypeScript", "Vite", "WinBox.js"],
-      "url": "https://github.com/evertondays/everton-os",
+      "repos": [{ "url": "https://github.com/evertondays/everton-os" }],
       "images": []
+    },
+    {
+      "id": "resolve-ai",
+      "name": "ResolveAi!",
+      "description": {
+        "pt": "Aplicativo que aproxima a população de Jundiaí e região do poder público: os próprios cidadãos registram problemas de infraestrutura da cidade, marcados no mapa, para que o governo e os vizinhos saibam que eles existem. Fiz há alguns anos, durante o curso técnico em Desenvolvimento de Sistemas na Etec.",
+        "en": "An app that brings the people of Jundiaí and the surrounding region closer to local government: citizens report the city's infrastructure problems themselves, pinned on a map, so the government and their neighbors know they exist. I built it a few years ago, during my technical degree in Systems Development at Etec."
+      },
+      "highlights": [
+        { "pt": "Cadastro de problemas com fotos e localização, exibidos no Google Maps.", "en": "Problems reported with photos and location, shown on Google Maps." },
+        { "pt": "Busca de postagens e campo de comentários.", "en": "Post search and a comment section." },
+        { "pt": "App cross-platform em React Native consumindo uma API REST própria em Node.js, hospedada na Microsoft Azure com banco SQL Server.", "en": "Cross-platform React Native app backed by its own Node.js REST API, hosted on Microsoft Azure with a SQL Server database." }
+      ],
+      "keywords": ["React Native", "Node.js", "SQL Server", "Azure"],
+      "repos": [
+        { "label": "mobile", "url": "https://github.com/evertondays/resolve-ai-mobile" },
+        { "label": "backend", "url": "https://github.com/evertondays/resolve-ai-backend" }
+      ],
+      "images": [
+        { "src": "media/projects/resolve-ai.png", "caption": { "pt": "Telas do aplicativo", "en": "App screens" } }
+      ]
+    },
+    {
+      "id": "lemonade-music-player",
+      "name": "Lemonade Music Player",
+      "description": {
+        "pt": "Player de música para o navegador, com front-end em React e uma API REST em Node.js. Fiz há alguns anos, durante o curso técnico em Desenvolvimento de Sistemas na Etec, para aprender mais sobre React e JavaScript no servidor.",
+        "en": "A music player for the browser, with a React front end and a Node.js REST API. I built it a few years ago, during my technical degree in Systems Development at Etec, to learn more about React and server-side JavaScript."
+      },
+      "highlights": [
+        { "pt": "Importação e exclusão de arquivos .mp3.", "en": "Import and delete .mp3 files." },
+        { "pt": "Criação de playlists.", "en": "Create playlists." },
+        { "pt": "Controles de reprodução e de volume.", "en": "Playback and volume controls." }
+      ],
+      "keywords": ["React", "JavaScript", "Node.js"],
+      "repos": [
+        { "label": "frontend", "url": "https://github.com/evertondays/lemonade-music-player" },
+        { "label": "backend", "url": "https://github.com/evertondays/lemonade-music-player-backend" }
+      ],
+      "images": [
+        { "src": "media/projects/lemonade-music-player.png", "caption": { "pt": "Tela de uma playlist", "en": "A playlist screen" } }
+      ]
+    },
+    {
+      "id": "snotra-books",
+      "name": "Snotra Books",
+      "description": {
+        "pt": "Livraria digital feita com PHP e MySQL, com site totalmente responsivo criado com mobile first. Fiz há alguns anos, durante o curso técnico em Desenvolvimento de Sistemas na Etec, como trabalho da disciplina de Programação Web.",
+        "en": "A digital bookstore built with PHP and MySQL, with a fully responsive, mobile-first website. I built it a few years ago, during my technical degree in Systems Development at Etec, as a project for the Web Programming course."
+      },
+      "highlights": [
+        { "pt": "Busca de livros pela API do Google Books, que facilita o cadastro.", "en": "Book search through the Google Books API, which makes adding books easier." },
+        { "pt": "Layout mobile first, 100% responsivo.", "en": "Mobile-first, fully responsive layout." }
+      ],
+      "keywords": ["PHP", "MySQL", "HTML", "CSS", "Google Books API"],
+      "repos": [{ "url": "https://github.com/evertondays/snotra-books" }],
+      "images": [
+        { "src": "media/projects/snotra-books.png", "caption": { "pt": "O site no celular e no computador", "en": "The site on phone and desktop" } }
+      ]
     }
   ],
   "photos": [

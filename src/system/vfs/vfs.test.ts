@@ -99,6 +99,9 @@ describe('overlay', () => {
     const entries = vfs.readdir('/projects')
     expect(entries.map((entry) => [entry.name, entry.inode.layer])).toEqual([
       ['everton-os', 'lower'],
+      ['resolve-ai', 'lower'],
+      ['lemonade-music-player', 'lower'],
+      ['snotra-books', 'lower'],
       ['mine', 'upper'],
     ])
   })
