@@ -1,5 +1,5 @@
-import { Maximize, Moon, Sun, Volume2, Wifi } from 'lucide-react'
-import { useRef } from 'react'
+import { Maximize, Minimize, Moon, Sun, Volume2, Wifi } from 'lucide-react'
+import { useRef, useSyncExternalStore } from 'react'
 import { track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { Logo } from '../../components/Logo.tsx'
@@ -35,6 +35,17 @@ async function toggleFullscreen() {
   ])
 }
 
+// Follows the browser's full screen, so Esc (or F11's exit) also flips the icon.
+function useFullscreen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      document.addEventListener('fullscreenchange', onChange)
+      return () => document.removeEventListener('fullscreenchange', onChange)
+    },
+    () => document.fullscreenElement !== null,
+  )
+}
+
 export function Panel({
   menuOpen,
   onToggleMenu,
@@ -51,6 +62,7 @@ export function Panel({
   const os = useOS()
   const now = useClock()
   const theme = useSettings((s) => s.theme)
+  const fullscreen = useFullscreen()
   const list = useStore(windows, (s) => s.windows)
   const focusedId = useStore(windows, (s) => s.focusedId)
   // WinBox blurs the focused window as soon as the mouse goes down outside it,
@@ -128,10 +140,10 @@ export function Panel({
         <button
           className="panel-button"
           onClick={() => void toggleFullscreen()}
-          title={t('panel.fullscreen')}
-          aria-label={t('panel.fullscreen')}
+          title={t(fullscreen ? 'panel.exitFullscreen' : 'panel.fullscreen')}
+          aria-label={t(fullscreen ? 'panel.exitFullscreen' : 'panel.fullscreen')}
         >
-          <Maximize size={16} />
+          {fullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
         <span className="panel-status" aria-hidden>
           <Wifi size={16} />
