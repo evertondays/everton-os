@@ -1,9 +1,10 @@
-import { type RefObject, Suspense, useEffect, useMemo, useRef } from 'react'
+import { type RefObject, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { track } from '../../analytics.ts'
 import { useLocale } from '../../i18n/index.ts'
 import { appName, apps } from '../../system/apps.ts'
 import { type AppWindow, AppWindowContext, type CloseGuard, ProcessContext } from '../../system/os.ts'
+import { AppContent } from '../AppContent.tsx'
 import { PANEL_HEIGHT, workArea } from './layout.ts'
 import { isSide, oppositeSide } from './snap.ts'
 import { useWindow } from './useWindow.ts'
@@ -93,13 +94,10 @@ export function Window({ win }: { win: Win }) {
   const process = useMemo(() => ({ pid, appId }), [pid, appId])
 
   if (!container) return null
-  const App = app.component
   return createPortal(
     <ProcessContext.Provider value={process}>
       <AppWindowContext.Provider value={appWindow}>
-        <Suspense fallback={<div className="app-loading" />}>
-          <App args={win.args} />
-        </Suspense>
+        <AppContent app={app} args={win.args} />
       </AppWindowContext.Provider>
     </ProcessContext.Provider>,
     container,

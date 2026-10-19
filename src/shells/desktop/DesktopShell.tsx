@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { track } from '../../analytics.ts'
+import { preloadApps } from '../../system/apps.ts'
 import { useFsReady } from '../../system/fs.ts'
 import { OSContext, type ShellOS } from '../../system/os.ts'
 import { settings } from '../../system/settings.ts'
@@ -33,6 +34,9 @@ export default function DesktopShell() {
   const ready = useFsReady()
 
   const showLogin = useCallback(() => setPhase('login'), [])
+
+  // While boot and login play, the apps load in the background, so they open at once.
+  useEffect(() => preloadApps('desktop'), [])
 
   if (phase === 'boot') return <Boot onDone={showLogin} />
   if (phase === 'desktop' && !ready) return <Loading />

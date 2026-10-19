@@ -1,11 +1,11 @@
 import { BatteryFull, ChevronLeft, Lock, Signal, Wifi } from 'lucide-react'
-import { type PointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type AppSource, track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
 import type { LaunchArgs } from '../../sdk/app.ts'
-import { type AppDef, type AppId, appName, apps, appsFor } from '../../system/apps.ts'
+import { type AppDef, type AppId, appName, apps, appsFor, preloadApps } from '../../system/apps.ts'
 import { type Tile, tiles } from '../../system/fileUi.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH, publicArgs, useFsReady } from '../../system/fs.ts'
@@ -22,6 +22,7 @@ import { type Pid, exit, hasArgs, relaunch, spawn } from '../../system/processes
 import { settings } from '../../system/settings.ts'
 import { useClock } from '../../system/useClock.ts'
 import { useWallpaper } from '../../system/wallpapers.ts'
+import { AppContent } from '../AppContent.tsx'
 import './mobile.css'
 
 // The phone shell: lock screen, home screen with a dock, and apps in full
@@ -72,6 +73,9 @@ export default function MobileShell() {
     top.current = screens.at(-1)
     stack.current = screens
   })
+
+  // While the lock screen is up, the apps load in the background, so they open at once.
+  useEffect(() => preloadApps('mobile'), [])
 
   /** Runs `leave` if the guards of `list` let it; one question at a time. */
   const leaveIfAllowed = useCallback(
@@ -378,7 +382,6 @@ function AppScreen({
   const process = useMemo(() => ({ pid: key, appId }), [key, appId])
 
   useEffect(() => () => void guards.delete(key), [guards, key])
-  const App = app.component
 
   return (
     <section
@@ -398,9 +401,7 @@ function AppScreen({
       <div className="ios-app-body">
         <ProcessContext.Provider value={process}>
           <AppWindowContext.Provider value={appWindow}>
-            <Suspense fallback={<div className="app-loading" />}>
-              <App args={screen.args} />
-            </Suspense>
+            <AppContent app={app} args={screen.args} />
           </AppWindowContext.Provider>
         </ProcessContext.Provider>
       </div>

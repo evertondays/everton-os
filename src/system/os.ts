@@ -29,7 +29,7 @@ export interface ShellOS {
 }
 
 /** An app as other apps see it: its name in the current language. */
-export type AppInfo = Omit<AppDef, 'name' | 'component' | 'entry'> & { name: string }
+export type AppInfo = Omit<AppDef, 'name' | 'entry' | 'load' | 'loaded'> & { name: string }
 
 export interface OS extends ShellOS {
   fs: FsApi
@@ -57,7 +57,7 @@ export interface OS extends ShellOS {
 }
 
 const info = (app: AppDef): AppInfo => {
-  const { component: _component, entry: _entry, ...rest } = app
+  const { entry: _entry, load: _load, loaded: _loaded, ...rest } = app
   return { ...rest, name: appName(app, settings.get().locale) }
 }
 
