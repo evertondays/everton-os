@@ -30,6 +30,7 @@ import {
   useT,
 } from '../../sdk/index.ts'
 import { appName, apps } from '../../system/apps.ts'
+import { setPointerDropFolder, windowDropAt } from '../../system/fileUi.ts'
 import { PANEL_HEIGHT } from './layout.ts'
 
 // Desktop icons that behave like on Windows: they sit on a grid, a click
@@ -71,6 +72,9 @@ interface Box {
   right: number
   bottom: number
 }
+
+/** Where dragged icons would go: a folder icon of the desktop, or a window (into a folder of Files, or nowhere). */
+type DropTarget = { kind: 'icon'; folder: string; icon: string } | { kind: 'window'; folder: string | null }
 
 type Gesture =
   | { kind: 'icons'; id: string; ids: string[]; startX: number; startY: number; moved: boolean; additive: boolean }
@@ -393,24 +397,30 @@ export function DesktopIcons() {
   /** The visitor's things among the dragged icons: the only ones that can go into a folder. */
   const movable = (dragged: string[]) => icons.filter((icon) => icon.entry && isOwn(icon.entry) && dragged.includes(icon.id))
 
-  /** The folder icon under the pointer that the dragged icons can go into (a folder, a shortcut to one, the Trash). */
-  const folderUnder = (dragged: string[], event: PointerEvent): DesktopIcon | null => {
+  /**
+   * What is under the pointer while icons are dragged: a window (and the
+   * folder of a Files window there, if the pointer is on one), or a folder
+   * icon of the desktop the visitor's things can go into (a folder, a
+   * shortcut to one, the Trash).
+   */
+  const dropTargetAt = (dragged: string[], event: PointerEvent): DropTarget | null => {
+    const over = windowDropAt(event.clientX, event.clientY)
+    if (over) return { kind: 'window', folder: movable(dragged).length > 0 ? over.folder : null }
     if (movable(dragged).length === 0) return null
     const { x, y } = localPoint(event)
-    return (
-      icons.find((icon) => {
-        if (!icon.folder || dragged.includes(icon.id)) return false
-        const { left, top, right, bottom } = iconBox(layout[icon.id])
-        return x >= left && x <= right && y >= top && y <= bottom
-      }) ?? null
-    )
+    const icon = icons.find((other) => {
+      if (!other.folder || dragged.includes(other.id)) return false
+      const { left, top, right, bottom } = iconBox(layout[other.id])
+      return x >= left && x <= right && y >= top && y <= bottom
+    })
+    return icon ? { kind: 'icon', folder: icon.folder!, icon: icon.id } : null
   }
 
-  /** Puts files into the folder of `target`: moves them, or deletes them if it's the Trash. */
-  const putInto = (target: DesktopIcon, paths: string[]) => {
-    if (paths.length === 0 || !target.folder) return
-    if (target.folder === TRASH_PATH) void attempt(() => os.fs.trash(paths))
-    else void attempt(() => os.fs.move(paths, target.folder!))
+  /** Puts files into `folder`: moves them, or deletes them if it's the Trash. */
+  const putInto = (folder: string, paths: string[]) => {
+    if (paths.length === 0) return
+    if (folder === TRASH_PATH) void attempt(() => os.fs.trash(paths))
+    else void attempt(() => os.fs.move(paths, folder))
     setSelected(new Set())
   }
 
@@ -430,7 +440,7 @@ export function DesktopIcons() {
     event.preventDefault()
     event.stopPropagation()
     setDropHover(null)
-    putInto(icon, draggedPaths(event.dataTransfer))
+    putInto(icon.folder, draggedPaths(event.dataTransfer))
   }
 
   const onAreaDragOver = (event: DragEvent) => {
@@ -462,20 +472,29 @@ export function DesktopIcons() {
       current.moved = true
       setSelected(new Set(current.ids))
     }
-    setDrag({ ids: current.ids, dx, dy, target: folderUnder(current.ids, event)?.id ?? null })
+    const target = dropTargetAt(current.ids, event)
+    setDrag({ ids: current.ids, dx, dy, target: target?.kind === 'icon' ? target.icon : null })
+    setPointerDropFolder(target?.kind === 'window' ? target.folder : null)
+  }
+
+  const endDrag = () => {
+    gesture.current = null
+    setDrag(null)
+    setPointerDropFolder(null)
   }
 
   const onIconPointerUp = (event: PointerEvent) => {
     const current = gesture.current
     if (current?.kind !== 'icons') return
-    gesture.current = null
-    setDrag(null)
-    const target = current.moved ? folderUnder(current.ids, event) : null
-    if (target) {
+    endDrag()
+    const target = current.moved ? dropTargetAt(current.ids, event) : null
+    if (target?.folder) {
       putInto(
-        target,
+        target.folder,
         movable(current.ids).map((icon) => icon.entry!.path),
       )
+    } else if (target?.kind === 'window') {
+      // Let go over a window, but not on a folder: the icons go back where they were.
     } else if (current.moved) {
       drop(current.ids, event.clientX - current.startX, event.clientY - current.startY)
     } else if (current.additive) {
@@ -584,10 +603,7 @@ export function DesktopIcons() {
             onPointerDown={(event) => onIconPointerDown(event, icon.id)}
             onPointerMove={onIconPointerMove}
             onPointerUp={onIconPointerUp}
-            onPointerCancel={() => {
-              gesture.current = null
-              setDrag(null)
-            }}
+            onPointerCancel={endDrag}
             onDoubleClick={icon.open}
             onContextMenu={(event) => onIconContextMenu(event, icon)}
             onDragOver={(event) => onIconDragOver(event, icon)}
@@ -595,7 +611,9 @@ export function DesktopIcons() {
             onDrop={(event) => onIconDrop(event, icon)}
           >
             <AppIcon app={icon.icon} size={52} link={icon.link} />
-            <span>{icon.label}</span>
+            <span className="desktop-icon-label" title={icon.label}>
+              {icon.label}
+            </span>
           </button>
         )
       })}

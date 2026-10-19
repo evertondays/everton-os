@@ -33,7 +33,9 @@ export { VfsError } from '../system/vfs/errors.ts'
 export { DIRECTORY_MIME, LAUNCHER_MIME, SYMLINK_MIME, URL_MIME, mimeOf } from '../system/vfs/mime.ts'
 export { basename, dirname, isInside, joinPath, splitPath } from '../system/vfs/path.ts'
 export {
+  DROP_FOLDER_ATTRIBUTE,
   FILE_DRAG_TYPE,
+  usePointerDropFolder,
   type Tile,
   canModify,
   draggedPaths,

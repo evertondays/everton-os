@@ -25,6 +25,7 @@ import { NameField, RenameField } from '../../components/NameField.tsx'
 import {
   type AppProps,
   DESKTOP_PATH,
+  DROP_FOLDER_ATTRIBUTE,
   type Entry,
   FILE_DRAG_TYPE,
   LAUNCHER_MIME,
@@ -43,6 +44,7 @@ import {
   publicPath,
   useAppWindow,
   useOS,
+  usePointerDropFolder,
   useT,
 } from '../../sdk/index.ts'
 
@@ -65,8 +67,11 @@ export default function Files({ args }: AppProps) {
   /** The address bar shows the path as text, to copy or type over, instead of the breadcrumb. */
   const [editingPath, setEditingPath] = useState(false)
   const [copied, setCopied] = useState(false)
-  /** The folder that files being dragged would go into if dropped now. */
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  /** The folder that files dragged from a Files window would go into if dropped now. */
+  const [dragTarget, setDropTarget] = useState<string | null>(null)
+  // ...or desktop icons being dragged over this window.
+  const pointerTarget = usePointerDropFolder()
+  const dropTarget = dragTarget ?? pointerTarget
 
   // Fall back to the home folder if the path stops resolving.
   const found = os.fs.lookup(path)
@@ -134,8 +139,12 @@ export default function Files({ args }: AppProps) {
     return target?.inode.kind === 'dir' ? target.path : null
   }
 
-  /** Drop handlers that put files dragged from a Files window into `folder`; the Trash deletes them. */
+  /**
+   * Drop handlers that put files dragged from a Files window into `folder`;
+   * the Trash deletes them. The attribute lets desktop icons find it too.
+   */
   const dropInto = (folder: string) => ({
+    [DROP_FOLDER_ATTRIBUTE]: folder,
     onDragOver: (event: DragEvent) => {
       if (!isFileDrag(event.dataTransfer)) return
       event.preventDefault()

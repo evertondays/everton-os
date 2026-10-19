@@ -2,6 +2,7 @@ import { File, FileText, FileUser, Folder, Globe, Image, type LucideIcon } from 
 import type { Translate } from '../i18n/index.ts'
 import { apps } from './apps.ts'
 import { vfs } from './fs.ts'
+import { createStore, useStore } from './store.ts'
 import { VfsError } from './vfs/errors.ts'
 import { LAUNCHER_MIME, URL_MIME } from './vfs/mime.ts'
 import { type Entry, launcherApp } from './vfs/vfs.ts'
@@ -61,6 +62,35 @@ export function draggedPaths(data: DataTransfer): string[] {
 
 /** Whether a drag carries files from Files (its paths can only be read on drop). */
 export const isFileDrag = (data: DataTransfer) => data.types.includes(FILE_DRAG_TYPE)
+
+// Desktop icons are dragged with the pointer, not with HTML drag and drop, so
+// a Files window can't hear them coming. Instead, its drop targets carry the
+// folder they stand for in an attribute, the desktop looks under the pointer,
+// and the folder it would drop into is shared here for the window to light up.
+
+/** The attribute that makes an element a place to drop files into its folder. */
+export const DROP_FOLDER_ATTRIBUTE = 'data-drop-folder'
+
+const pointerDrop = createStore<{ folder: string | null }>({ folder: null })
+
+export const setPointerDropFolder = (folder: string | null) => {
+  if (pointerDrop.get().folder !== folder) pointerDrop.set({ folder })
+}
+
+/** The folder desktop icons being dragged would go into if let go now, when it's in a window. */
+export const usePointerDropFolder = () => useStore(pointerDrop, (state) => state.folder)
+
+/**
+ * What is under a point, above the desktop: null when it's the desktop
+ * itself; else whether it's a window, and the folder of the drop target
+ * there, if any.
+ */
+export function windowDropAt(x: number, y: number): { folder: string | null } | null {
+  // Elements being dragged ignore the pointer, so this is what's beneath them.
+  const top = document.elementFromPoint(x, y)
+  if (!top?.closest('.winbox')) return null
+  return { folder: top.closest(`[${DROP_FOLDER_ATTRIBUTE}]`)?.getAttribute(DROP_FOLDER_ATTRIBUTE) ?? null }
+}
 
 /** The message for a file system error; anything else is a bug and is thrown again. */
 export function fsErrorMessage(t: Translate, error: unknown): string {
