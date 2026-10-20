@@ -2,7 +2,7 @@
   "basics": {
     "name": "Everton Dias",
     "label": { "pt": "Desenvolvedor Full Stack Pleno", "en": "Mid-level Full Stack Developer" },
-    "image": "https://evertondays.github.io/curriculo/assets/me.jpg",
+    "image": "media/me.webp",
     "email": "evertonsrdias@gmail.com",
     "intro": {
       "pt": "Desenvolvedor full stack pleno com mais de 4 anos de experiência na netLex, startup líder em CLM (gestão do ciclo de vida de contratos) no Brasil. Entrei como estagiário e fui efetivado em um ano.",
@@ -240,7 +240,7 @@
     }
   ],
   "photos": [
-    { "src": "https://evertondays.github.io/curriculo/assets/me.jpg", "caption": "Everton Dias" }
+    { "src": "media/me.webp", "caption": "Everton Dias" }
   ],
   "meta": {
     "pdf": { "pt": null, "en": null },
