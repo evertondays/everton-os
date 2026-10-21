@@ -42,6 +42,7 @@ import {
   joinPath,
   legacyFileType,
   publicPath,
+  showDragGhost,
   useAppWindow,
   useOS,
   usePointerDropFolder,
@@ -485,6 +486,7 @@ export default function Files({ args }: AppProps) {
                       setSelected(entry.name)
                       event.dataTransfer.setData(FILE_DRAG_TYPE, JSON.stringify([entry.path]))
                       event.dataTransfer.effectAllowed = 'move'
+                      showDragGhost(event, event.currentTarget)
                     }}
                     {...(folderOf(entry) ? dropInto(folderOf(entry)!) : {})}
                     // A tap opens on the phone; on the desktop a click selects and a double click opens.

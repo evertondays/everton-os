@@ -63,6 +63,49 @@ export function draggedPaths(data: DataTransfer): string[] {
 /** Whether a drag carries files from Files (its paths can only be read on drop). */
 export const isFileDrag = (data: DataTransfer) => data.types.includes(FILE_DRAG_TYPE)
 
+// Made ahead of time: a drag image has to be loaded when the drag starts.
+const NO_DRAG_IMAGE =
+  typeof document === 'undefined'
+    ? null
+    : Object.assign(document.createElement('img'), { src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAACH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })
+
+/**
+ * Makes a copy of `source` follow the pointer while it's dragged with HTML
+ * drag and drop, in place of the browser's snapshot of it (on Windows, a pale
+ * square that loses the rounded corners). Call it from the dragstart handler.
+ */
+export function showDragGhost(
+  event: { clientX: number; clientY: number; dataTransfer: DataTransfer },
+  source: HTMLElement,
+) {
+  if (!NO_DRAG_IMAGE) return
+  const box = source.getBoundingClientRect()
+  const grab = { x: event.clientX - box.left, y: event.clientY - box.top }
+  const ghost = source.cloneNode(true) as HTMLElement
+  ghost.classList.add('drag-ghost')
+  ghost.classList.remove('is-drop-target')
+  ghost.setAttribute('aria-hidden', 'true')
+  ghost.style.width = `${box.width}px`
+  const follow = (x: number, y: number) => {
+    ghost.style.transform = `translate(${x - grab.x}px, ${y - grab.y}px)`
+  }
+  follow(event.clientX, event.clientY)
+  document.body.append(ghost)
+  event.dataTransfer.setDragImage(NO_DRAG_IMAGE, 0, 0)
+
+  const onDragOver = (over: DragEvent) => follow(over.clientX, over.clientY)
+  const end = () => {
+    ghost.remove()
+    document.removeEventListener('dragover', onDragOver, true)
+    document.removeEventListener('drop', end, true)
+    source.removeEventListener('dragend', end)
+  }
+  document.addEventListener('dragover', onDragOver, true)
+  // A drop that moves the file takes `source` out of the page, and its dragend never reaches the document.
+  document.addEventListener('drop', end, true)
+  source.addEventListener('dragend', end)
+}
+
 // Desktop icons are dragged with the pointer, not with HTML drag and drop, so
 // a Files window can't hear them coming. Instead, its drop targets carry the
 // folder they stand for in an attribute, the desktop looks under the pointer,

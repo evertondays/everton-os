@@ -428,6 +428,20 @@
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
+/* A file being dragged out of Files, following the pointer (showDragGhost). Opaque: it may cross the wallpaper. */
+.file.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100000;
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-family: var(--font);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 /* Where files being dragged would go if dropped now: a folder, a place in the sidebar, a folder in the path. */
 .file.is-drop-target,
 .files-places button.is-drop-target,
