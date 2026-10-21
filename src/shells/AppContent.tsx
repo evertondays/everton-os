@@ -1,4 +1,4 @@
-import { type ComponentType, useEffect, useState } from 'react'
+import { type ComponentType, memo, useEffect, useState } from 'react'
 import type { AppProps, LaunchArgs } from '../sdk/app.ts'
 import type { AppDef } from '../system/apps.ts'
 
@@ -7,8 +7,10 @@ import type { AppDef } from '../system/apps.ts'
  * Usually it's loaded already (see preloadApps) and shows at once. If not, a
  * blank surface stands in until it is. Not a Suspense boundary: React holds
  * back what a boundary reveals for 300 ms, which made every first open slow.
+ * Memoized: the shells re-render when a screen or window starts animating, and
+ * redrawing the whole app then would cost the animation its first frames.
  */
-export function AppContent({ app, args }: { app: AppDef; args: LaunchArgs }) {
+export const AppContent = memo(function AppContent({ app, args }: { app: AppDef; args: LaunchArgs }) {
   const [App, setApp] = useState<ComponentType<AppProps> | null>(() => app.loaded())
   const [error, setError] = useState<unknown>(null)
 
@@ -27,4 +29,4 @@ export function AppContent({ app, args }: { app: AppDef; args: LaunchArgs }) {
   // As before with lazy(): a chunk that can't load is an error for error tracking (main.tsx reloads first).
   if (error) throw error
   return App ? <App args={args} /> : <div className="app-loading" />
-}
+})

@@ -1,5 +1,5 @@
 import { BatteryFull, ChevronLeft, Lock, Signal, Wifi } from 'lucide-react'
-import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type AppSource, track } from '../../analytics.ts'
 import { AppIcon } from '../../components/AppIcon.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
@@ -68,6 +68,8 @@ export default function MobileShell() {
   const [guards] = useState(() => new Map<number, CloseGuard>())
   // Set while a guard is asking, so more taps on Back or Home don't stack up dialogs.
   const asking = useRef(false)
+  // Set while the screens animate away on the way home; ends the closing.
+  const finishClosing = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     top.current = screens.at(-1)
@@ -139,17 +141,27 @@ export default function MobileShell() {
   }, [leaveIfAllowed])
 
   const goHome = useCallback(() => {
+    if (finishClosing.current) return
     const screen = top.current
     void leaveIfAllowed(stack.current, () => {
       if (screen) track('app_closed', { app: screen.appId, method: 'home' })
-      setClosing(true)
-      window.setTimeout(() => {
+      const finish = () => {
+        if (finishClosing.current !== finish) return
+        finishClosing.current = null
         stack.current.forEach((other) => exit(other.key))
         setScreens([])
         setClosing(false)
-      }, CLOSE_ANIMATION)
+      }
+      finishClosing.current = finish
+      setClosing(true)
+      // The screens go when their animation ends (onClosed). A timer started
+      // here would run ahead of it whenever the first frame is late, and cut
+      // the animation short. This one only covers an animation that never ends.
+      window.setTimeout(finish, CLOSE_ANIMATION * 3)
     })
   }, [leaveIfAllowed])
+
+  const onClosed = useCallback(() => finishClosing.current?.(), [])
 
   const unlock = useCallback(() => {
     setLocked(false)
@@ -179,6 +191,7 @@ export default function MobileShell() {
               screen={screen}
               active={index === screens.length - 1}
               closing={closing}
+              onClosed={onClosed}
               onBack={index > 0 ? back : undefined}
               onClose={index > 0 ? back : goHome}
               guards={guards}
@@ -233,7 +246,7 @@ function LockScreen({ onUnlock }: { onUnlock(): void }) {
 
   return (
     <div
-      className={`ios-lock${leaving ? ' is-leaving' : ''}`}
+      className={`ios-lock${leaving ? ' is-leaving' : offset ? ' is-dragging' : ''}`}
       style={{ backgroundImage: wallpaper.css, transform: offset ? `translateY(${-offset}px)` : undefined }}
       role="button"
       tabIndex={0}
@@ -275,7 +288,8 @@ interface HomeIcon {
   open(): void
 }
 
-function HomeScreen() {
+// Memoized: it has no props, and stays put while apps open and close over it.
+const HomeScreen = memo(function HomeScreen() {
   const t = useT()
   const locale = useLocale()
   const os = useOS()
@@ -345,12 +359,13 @@ function HomeScreen() {
       </nav>
     </div>
   )
-}
+})
 
 function AppScreen({
   screen,
   active,
   closing,
+  onClosed,
   onBack,
   onClose,
   guards,
@@ -358,6 +373,8 @@ function AppScreen({
   screen: Screen
   active: boolean
   closing: boolean
+  /** Called when the closing animation is over. */
+  onClosed(): void
   /** Present when there is a screen underneath to go back to. */
   onBack?: () => void
   onClose(): void
@@ -388,6 +405,9 @@ function AppScreen({
       className={`ios-app${closing ? ' is-closing' : ''}`}
       style={{ transformOrigin: `${screen.origin.x}px ${screen.origin.y}px` }}
       aria-hidden={!active}
+      onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget && event.animationName === 'ios-close') onClosed()
+      }}
     >
       <header className="ios-nav">
         {onBack && (

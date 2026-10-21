@@ -51,6 +51,11 @@
     opacity 0.26s;
 }
 
+/* Under the finger it follows at once; the transition is for letting go. */
+.ios-lock.is-dragging {
+  transition: none;
+}
+
 .ios-lock.is-leaving {
   opacity: 0;
   transform: translateY(-100%) !important;
@@ -210,25 +215,30 @@
   background: var(--surface);
   color: var(--text);
   user-select: text;
+  /* Keeps the screen on its own GPU layer, so closing doesn't start by drawing it again.
+     Not transform: that would make the screen the box for position: fixed menus. */
+  will-change: opacity;
   animation: ios-open 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
+/* Only transform and opacity: the GPU animates those on its own. Anything else
+   (border-radius was here) makes the browser redraw the whole screen every frame. */
 @keyframes ios-open {
   from {
     opacity: 0;
-    border-radius: 40px;
     transform: scale(0.15);
   }
 }
 
 .ios-app.is-closing {
+  overflow: hidden;
+  border-radius: 40px;
   animation: ios-close 0.22s ease-in forwards;
 }
 
 @keyframes ios-close {
   to {
     opacity: 0;
-    border-radius: 40px;
     transform: scale(0.15);
   }
 }
