@@ -185,12 +185,11 @@ export class Vfs {
       }
       const current = chain.at(-1)!
       if (current.inode.kind !== 'dir') throw new VfsError('ENOTDIR', path)
-      const children = fs.readdir(current.ino)
       let name = segment
-      let ino = children.get(segment)
+      let ino = fs.lookup(current.ino, segment)
       if (ino === undefined && lenient) {
         const wanted = plain(segment)
-        for (const [childName, childIno] of children) {
+        for (const [childName, childIno] of fs.readdir(current.ino)) {
           const child = fs.stat(childIno)
           if (child && (plain(childName) === wanted || plain(this.displayNameOf(childName, child, '')) === wanted)) {
             name = childName
@@ -325,8 +324,27 @@ export class Vfs {
     return run
   }
 
+  /**
+   * Applies `changes` as one transaction. The visitor's folders that gained or
+   * lost an entry are marked as modified, like on Unix; the résumé's are
+   * read-only and keep their time.
+   */
   private async apply(changes: Change[]) {
-    if (changes.length > 0) await this.driver().apply(changes)
+    if (changes.length === 0) return
+    const now = Date.now()
+    const pending = new Map(changes.flatMap((change) => (change.type === 'inode' ? [[change.inode.ino, change.inode]] : [])))
+    const dropped = new Set(changes.flatMap((change) => (change.type === 'drop' ? [change.ino] : [])))
+    const parents = new Set(
+      changes.flatMap((change) => (change.type === 'link' || change.type === 'unlink' ? [change.parent] : [])),
+    )
+    const touched: Change[] = []
+    for (const ino of parents) {
+      if (dropped.has(ino)) continue
+      const current = this.driver().upper.stat(ino)
+      const inode = pending.get(ino) ?? (current && toStored(current))
+      if (inode) touched.push({ type: 'inode', inode: { ...inode, mtime: now } })
+    }
+    await this.driver().apply([...changes, ...touched])
   }
 
   private writableDir(path: string, options?: ResolveOptions): Step {
@@ -372,33 +390,35 @@ export class Vfs {
     return extension && !/\.[^.\s]+$/.test(clean) ? `${clean}${extension}` : clean
   }
 
-  /** Whether something in `dir` (other than `except`) already answers to `name`, by real or shown name, in any case. */
-  private taken(dir: Step, name: string, except?: Ino, claimed?: Set<string>): boolean {
-    const wanted = name.toLowerCase()
-    if (claimed?.has(wanted)) return true
-    for (const [childName, ino] of this.driver().readdir(dir.ino)) {
+  /**
+   * Every name something in `dir` (other than `except`) answers to, real or
+   * shown, in lower case. Built in one pass, so checking a name is O(1).
+   */
+  private namesIn(dir: Step, except?: Ino): Set<string> {
+    const names = new Set<string>()
+    for (const [name, ino] of this.driver().readdir(dir.ino)) {
       if (ino === except) continue
-      const inode = this.driver().stat(ino)
-      if (childName.toLowerCase() === wanted) return true
-      if (inode?.displayName?.toLowerCase() === wanted) return true
+      names.add(name.toLowerCase())
+      const shown = this.driver().stat(ino)?.displayName
+      if (shown) names.add(shown.toLowerCase())
     }
-    return false
+    return names
   }
 
-  /** `name`, or `name (2)`, `name (3)`... before the extension, whichever is free in `dir`. */
+  /** `name`, or `name (2)`, `name (3)`... before the extension, whichever isn't in `names`. */
   private uniqueName(
-    dir: Step,
+    names: ReadonlySet<string>,
     name: string,
     kind: InodeKind,
-    claimed?: Set<string>,
     free: (candidate: string) => boolean = () => true,
   ): string {
-    if (!this.taken(dir, name, undefined, claimed) && free(name)) return name
+    const available = (candidate: string) => !names.has(candidate.toLowerCase()) && free(candidate)
+    if (available(name)) return name
     const dot = kind === 'file' ? name.lastIndexOf('.') : -1
     const [stem, extension] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, '']
     for (let n = 2; ; n++) {
       const candidate = `${stem} (${n})${extension}`
-      if (!this.taken(dir, candidate, undefined, claimed) && free(candidate)) return candidate
+      if (available(candidate)) return candidate
     }
   }
 
@@ -437,9 +457,10 @@ export class Vfs {
       const [folder, name] = splitPath(path)
       const dir = this.writableDir(folder, { cwd })
       let clean = this.cleanName(name, kind === 'file' && extension ? '.txt' : undefined)
-      if (this.taken(dir, clean)) {
+      const names = this.namesIn(dir)
+      if (names.has(clean.toLowerCase())) {
         if (!unique) throw new VfsError('EEXIST', clean)
-        clean = this.uniqueName(dir, clean, kind)
+        clean = this.uniqueName(names, clean, kind)
       }
       if (content !== undefined) this.checkSize(content, clean)
       const now = Date.now()
@@ -515,7 +536,7 @@ export class Vfs {
       if (isInside(step.path, TRASH_DIR)) throw new VfsError('EROFS', shown)
       if (clean !== step.name && this.isImmutable(step)) throw new VfsError('EPERM', shown)
       if (step.inode.kind === 'dir' && isInside(dir.path, step.path)) throw new VfsError('EINVAL', step.name, 'intoItself')
-      if (this.taken(dir, clean, step.ino)) throw new VfsError('EEXIST', clean)
+      if (this.namesIn(dir, step.ino).has(clean.toLowerCase())) throw new VfsError('EEXIST', clean)
       // Only the dentry changes: what's inside a folder goes with it untouched.
       await this.apply([
         { type: 'unlink', parent, name: step.name },
@@ -550,23 +571,26 @@ export class Vfs {
     return this.serial(async () => {
       const dir = this.writableDir(target, { cwd })
       const steps = this.ownAll(paths, { cwd })
-      const claimed = new Set<string>()
+      // What's moved isn't in `dir` yet (that's skipped), so no exception is needed.
+      const names = this.namesIn(dir)
       const changes: Change[] = []
+      let moved = 0
       for (const step of steps) {
         const parent = this.parentOf(step)
         if (parent === dir.ino) continue
         if (step.inode.kind === 'dir' && isInside(dir.path, step.path)) throw new VfsError('EINVAL', step.name, 'intoItself')
         let name = step.name
-        if (this.taken(dir, name, step.ino, claimed)) {
+        if (names.has(name.toLowerCase())) {
           if (!unique) throw new VfsError('EEXIST', name)
-          name = this.uniqueName(dir, name, step.inode.kind, claimed)
+          name = this.uniqueName(names, name, step.inode.kind)
         }
-        claimed.add(name.toLowerCase())
+        names.add(name.toLowerCase())
+        moved++
         this.forgetTrashInfo(step, changes)
         changes.push({ type: 'unlink', parent, name: step.name }, { type: 'link', parent: dir.ino, name, ino: step.ino })
       }
       await this.apply(changes)
-      return claimed.size
+      return moved
     })
   }
 
@@ -586,12 +610,12 @@ export class Vfs {
       const files = this.walk(TRASH_PATH).at(-1)!
       const info = this.walk(TRASH_INFO_PATH).at(-1)!
       const infoNames = this.driver().readdir(info.ino)
-      const claimed = new Set<string>()
+      const names = this.namesIn(files)
       const changes: Change[] = []
       const now = Date.now()
       for (const step of steps) {
-        const name = this.uniqueName(files, step.name, step.inode.kind, claimed, (candidate) => !infoNames.has(`${candidate}.trashinfo`))
-        claimed.add(name.toLowerCase())
+        const name = this.uniqueName(names, step.name, step.inode.kind, (candidate) => !infoNames.has(`${candidate}.trashinfo`))
+        names.add(name.toLowerCase())
         const infoIno = newIno()
         const text = trashInfo(step.path, now)
         changes.push(
@@ -612,7 +636,7 @@ export class Vfs {
     return this.serial(async () => {
       const files = this.walk(TRASH_PATH).at(-1)!
       const steps = this.ownAll(paths, options).filter((step) => this.parentOf(step) === files.ino)
-      const claimed = new Map<Ino, Set<string>>()
+      const namesByDir = new Map<Ino, Set<string>>()
       const changes: Change[] = []
       for (const step of steps) {
         const info = this.trashInfoOf(step.name)
@@ -620,11 +644,11 @@ export class Vfs {
         const origin = typeof content === 'string' ? parseTrashInfo(content) : null
         const folder = origin ? splitPath(origin)[0] : DESKTOP_PATH
         const dir = this.canCreateIn(folder) ? this.writableDir(folder) : this.writableDir(DESKTOP_PATH)
-        const taken = claimed.get(dir.ino) ?? new Set<string>()
-        claimed.set(dir.ino, taken)
+        const names = namesByDir.get(dir.ino) ?? this.namesIn(dir)
+        namesByDir.set(dir.ino, names)
         const wanted = origin ? basename(origin) : step.name
-        const name = this.uniqueName(dir, wanted, step.inode.kind, taken)
-        taken.add(name.toLowerCase())
+        const name = this.uniqueName(names, wanted, step.inode.kind)
+        names.add(name.toLowerCase())
         this.forgetTrashInfo(step, changes)
         changes.push({ type: 'unlink', parent: files.ino, name: step.name }, { type: 'link', parent: dir.ino, name, ino: step.ino })
       }

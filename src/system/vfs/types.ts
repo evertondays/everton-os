@@ -19,7 +19,12 @@ export interface Inode {
   /** Symlinks only: an absolute path, or one relative to the link's folder. */
   target?: string
   size?: number
+  /**
+   * When it was created (Unix's birth time, not its change time): moving or
+   * renaming keeps it, so the immutable things keep their order.
+   */
   ctime: number
+  /** When its content changed; for a folder, when an entry was added, removed or renamed. */
   mtime: number
   mode: 'ro' | 'rw'
   /** `immutable`: can't be renamed or deleted, but can be moved (like `chattr +i`, except for moving). */
