@@ -322,6 +322,86 @@ a.icon-button,
   width: 15px;
 }
 
+/* Action sheets (components/ActionSheet.tsx): the phone's menus, sliding up from the bottom */
+
+.action-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 95000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+  animation: dialog-fade 160ms ease-out;
+}
+
+.action-sheet-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 80%;
+  overflow: auto;
+  padding: 6px 8px calc(30px + env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  animation: action-sheet-in 240ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes action-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.action-sheet-grabber {
+  flex: none;
+  width: 36px;
+  height: 5px;
+  margin: 4px auto 8px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.action-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: 0 8px 6px;
+  padding: 6px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.action-sheet-panel > button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 50px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  text-align: left;
+}
+
+.action-sheet-panel > button:active {
+  background: var(--active);
+}
+
+.action-sheet-panel > button svg {
+  color: var(--text-dim);
+}
+
+.action-sheet-panel > button.is-danger,
+.action-sheet-panel > button.is-danger svg {
+  color: var(--danger);
+}
+
+.action-sheet-panel > button:disabled {
+  opacity: 0.45;
+}
+
 /* System dialogs (components/DialogHost.tsx), above windows and menus */
 
 .dialog-backdrop {

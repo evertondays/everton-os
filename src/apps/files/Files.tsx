@@ -29,7 +29,6 @@ import {
   type Entry,
   FILE_DRAG_TYPE,
   LAUNCHER_MIME,
-  PROJECTS_PATH,
   TRASH_PATH,
   basename,
   canModify,
@@ -40,7 +39,6 @@ import {
   isInside,
   isOwn,
   joinPath,
-  legacyFileType,
   publicPath,
   showDragGhost,
   useAppWindow,
@@ -48,6 +46,7 @@ import {
   usePointerDropFolder,
   useT,
 } from '../../sdk/index.ts'
+import { trackProjectResource } from './track.ts'
 
 type FolderMethod = AnalyticsEvents['folder_opened']['method']
 
@@ -185,14 +184,7 @@ export default function Files({ args }: AppProps) {
   }
 
   const open = (entry: Entry, using?: string) => {
-    // Only the résumé's own projects: what visitors make in there is theirs, and so are its names.
-    if (entry.path.startsWith(`${PROJECTS_PATH}/`) && !isOwn(entry) && !chain.some(isOwn)) {
-      track('project_resource_opened', {
-        project: entry.path.split('/')[2],
-        resource: entry.name,
-        resource_type: entry.inode.kind === 'dir' ? 'project' : legacyFileType(entry.mime),
-      })
-    }
+    trackProjectResource(entry, chain)
     const folder = using ? null : folderOf(entry)
     if (folder) go(folder, 'item')
     else void attempt(() => os.openFile(entry.path, 'files', { with: using }))
