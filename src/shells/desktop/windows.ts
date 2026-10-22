@@ -76,7 +76,21 @@ export function openWindow(appId: AppId, args: LaunchArgs, source: AppSource): P
   return pid
 }
 
+// Windows playing their closing animation, so a second click doesn't close twice.
+const closing = new Set<string>()
+
+/** Closes window `id`: it animates away, then its process ends. */
 export function closeWindow(id: string) {
+  if (closing.has(id)) return
+  closing.add(id)
+  const animation = registered.get(id)?.handle()?.animateClose() ?? Promise.resolve()
+  void animation.then(() => {
+    closing.delete(id)
+    removeWindow(id)
+  })
+}
+
+function removeWindow(id: string) {
   const win = windows.get().windows.find((other) => other.id === id)
   if (win) {
     track('app_closed', { app: win.appId, method: 'window' })

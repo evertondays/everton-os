@@ -65,6 +65,7 @@ export function Window({ win }: { win: Win }) {
     onBlur: () => windowBlurred(id),
     onMinimize: () => windowMinimized(id, true),
     onRestore: () => windowMinimized(id, false),
+    dock: () => document.querySelector(`[data-window-id="${id}"]`)?.getBoundingClientRect() ?? null,
     // Snapped to one side: offer the other windows for the other side, like Windows' Snap Assist.
     onSnap: (zone) => {
       track('window_snapped', { app: win.appId, zone })

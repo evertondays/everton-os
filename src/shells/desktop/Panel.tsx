@@ -101,6 +101,8 @@ export function Panel({
           return (
             <button
               key={win.id}
+              // Where the window minimizes to (useWindow's dock).
+              data-window-id={win.id}
               className={`panel-task${focused ? ' is-focused' : ''}${win.minimized ? ' is-minimized' : ''}`}
               onMouseDown={() => {
                 pressedFocused.current = focused

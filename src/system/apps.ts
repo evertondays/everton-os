@@ -44,19 +44,32 @@ function toAppDef(manifest: AppManifest): AppDef {
   }
 }
 
-export const apps: ReadonlyMap<AppId, AppDef> = new Map(
-  Object.values(modules).map(({ default: manifest }) => [manifest.id, toAppDef(manifest)]),
+const manifests = Object.values(modules).map((module) => module.default)
+
+/** The apps as the desktop runs them; what's the same in both shells (an app's id, a launcher's icon) can use these. */
+export const apps: ReadonlyMap<AppId, AppDef> = new Map(manifests.map((manifest) => [manifest.id, toAppDef(manifest)]))
+
+// On the phone, an app with a mobile edition is that edition; the others are the same AppDef.
+const mobileApps: ReadonlyMap<AppId, AppDef> = new Map(
+  manifests.map((manifest) => [
+    manifest.id,
+    manifest.mobile ? toAppDef({ ...manifest, ...manifest.mobile }) : apps.get(manifest.id)!,
+  ]),
 )
 
+/** The apps as `shell` runs them: on the phone, their mobile editions. */
+export const appsIn = (shell: Shell) => (shell === 'mobile' ? mobileApps : apps)
+
+const ordered = (map: ReadonlyMap<AppId, AppDef>) =>
+  [...map.values()].toSorted((a, b) => (a.order ?? LAST) - (b.order ?? LAST) || a.id.localeCompare(b.id))
+
 /** Every app, in the order of the menu (desktop) and the home screen (mobile). */
-export const appList: AppDef[] = [...apps.values()].toSorted(
-  (a, b) => (a.order ?? LAST) - (b.order ?? LAST) || a.id.localeCompare(b.id),
-)
+const appLists = { desktop: ordered(apps), mobile: ordered(mobileApps) }
 
 const offeredIn = (app: AppDef, shell: Shell) => !app.shells || app.shells.includes(shell)
 
 /** The apps a shell can run. */
-export const runnableIn = (shell: Shell) => appList.filter((app) => offeredIn(app, shell))
+export const runnableIn = (shell: Shell) => appLists[shell].filter((app) => offeredIn(app, shell))
 
 /** The apps a shell lists in its menu or home screen, and that the Terminal can open there. */
 export const appsFor = (shell: Shell) => runnableIn(shell).filter((app) => app.listed !== false)

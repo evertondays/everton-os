@@ -9,5 +9,7 @@ export default defineApp({
   window: { width: 700, height: 460 },
   order: 13,
   single: true,
+  // On the phone the Trash is a tab of the Drive.
+  shells: ['desktop'],
   entry: () => import('./Trash.tsx'),
 })

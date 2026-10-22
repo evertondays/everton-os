@@ -42,6 +42,7 @@ export {
   fsErrorMessage,
   isFileDrag,
   isOwn,
+  showDragGhost,
   tileFor,
   tiles,
 } from '../system/fileUi.ts'

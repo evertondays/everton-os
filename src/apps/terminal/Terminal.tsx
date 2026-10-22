@@ -212,7 +212,7 @@ export default function TerminalApp() {
         ` Inode: ${inode.ino}\tLayer: ${inode.layer === 'upper' ? fs.mounts().upper : fs.mounts().lower}`,
         `Access: ${mode(entry)}${inode.flags?.length ? `\tFlags: ${inode.flags.join(',')}` : ''}`,
         `Modify: ${formatStamp(inode.mtime)}`,
-        `Change: ${formatStamp(inode.ctime)}`,
+        ` Birth: ${formatStamp(inode.ctime)}`,
       ].join('\n')
     },
     file: (args) => {

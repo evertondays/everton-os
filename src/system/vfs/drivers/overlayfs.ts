@@ -44,6 +44,15 @@ export class OverlayFs implements FsDriver {
     return merged
   }
 
+  /** One child of a folder, without merging the whole listing; the résumé's name wins, as in readdir. */
+  lookup(dir: Ino, name: string): Ino | undefined {
+    if (isLower(dir)) {
+      const ino = this.lower.readdir(dir.slice(LOWER.length)).get(name)
+      if (ino !== undefined) return LOWER + ino
+    }
+    return this.upper.readdir(dir).get(name)
+  }
+
   /** Where an upper inode is linked (lower inodes are found by their path). */
   dentry(ino: Ino): Dentry | undefined {
     return this.upper.dentry(ino)

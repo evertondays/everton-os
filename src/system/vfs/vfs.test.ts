@@ -90,6 +90,13 @@ describe('path resolution', () => {
     expect(vfs.lookup('/projetos', { lenient: true })?.path).toBe('/projects')
     expect(vfs.lookup('/curriculo.pdf', { lenient: true })?.path).toBe('/resume.pdf')
   })
+
+  it('walks the résumé’s folders without listing them', async () => {
+    const { vfs } = await mount()
+    const readdir = vi.spyOn(OverlayFs.prototype, 'readdir')
+    expect(vfs.stat('/projects/everton-os/README.md').inode.layer).toBe('lower')
+    expect(readdir).not.toHaveBeenCalled()
+  })
 })
 
 describe('overlay', () => {
@@ -152,6 +159,32 @@ describe('changes', () => {
     expect(vfs.lookup('/desktop/a.txt')).not.toBeNull()
     expect(vfs.lookup('/desktop/dest/a.txt')).toBeNull()
     expect(await vfs.readFile('/desktop/dest/c.txt')).toBe('already here')
+  })
+
+  it('numbers each of several things moved under a name that’s taken', async () => {
+    const { vfs } = await mount()
+    for (const folder of ['a', 'b', 'dest']) await vfs.mkdir(`/desktop/${folder}`)
+    for (const folder of ['a', 'b', 'dest']) await vfs.writeFile(`/desktop/${folder}/x.txt`, folder)
+    expect(await vfs.move(['/desktop/a/x.txt', '/desktop/b/x.txt'], '/desktop/dest')).toBe(2)
+    expect(vfs.readdir('/desktop/dest').map((entry) => entry.name)).toEqual(['x (2).txt', 'x (3).txt', 'x.txt'])
+    expect(await vfs.readFile('/desktop/dest/x (3).txt')).toBe('b')
+  })
+
+  it('marks the visitor’s folders modified when an entry moves, but not what moved', async () => {
+    const { vfs } = await mount()
+    await vfs.mkdir('/desktop/from')
+    await vfs.mkdir('/desktop/to')
+    await vfs.writeFile('/desktop/from/note.txt', 'text')
+    const note = vfs.stat('/desktop/from/note.txt').inode
+    const desktop = vfs.stat('/desktop').inode
+
+    vi.spyOn(Date, 'now').mockReturnValue(note.mtime + 60_000)
+    await vfs.move(['/desktop/from/note.txt'], '/desktop/to')
+    expect(vfs.stat('/desktop/from').inode.mtime).toBe(note.mtime + 60_000)
+    expect(vfs.stat('/desktop/to').inode.mtime).toBe(note.mtime + 60_000)
+    // What moved keeps its times; the résumé's folders are read-only.
+    expect(vfs.stat('/desktop/to/note.txt').inode).toMatchObject({ ctime: note.ctime, mtime: note.mtime })
+    expect(vfs.stat('/desktop').inode.mtime).toBe(desktop.mtime)
   })
 
   it('turns a full storage into ENOSPC and leaves the cache as it was', async () => {
