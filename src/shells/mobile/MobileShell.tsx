@@ -5,7 +5,7 @@ import { AppIcon } from '../../components/AppIcon.tsx'
 import { posthogLog } from '../../posthog-logs.ts'
 import { useLocale, useT } from '../../i18n/index.ts'
 import type { LaunchArgs } from '../../sdk/app.ts'
-import { type AppDef, type AppId, appName, apps, appsFor, preloadApps } from '../../system/apps.ts'
+import { type AppDef, type AppId, appName, appsFor, appsIn, preloadApps } from '../../system/apps.ts'
 import { type Tile, tiles } from '../../system/fileUi.ts'
 import { formatDate, formatTime } from '../../system/format.ts'
 import { RESUME_PATH, publicArgs, useFsReady } from '../../system/fs.ts'
@@ -31,6 +31,8 @@ import './mobile.css'
 const DOCK: AppId[] = ['contact', 'browser', 'gallery', 'files']
 const ICONS_PER_PAGE = 20
 const CLOSE_ANIMATION = 220
+/** The apps in their phone editions (the Drive for Files, say). */
+const apps = appsIn('mobile')
 
 interface Screen {
   /** The process it runs. */

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { type AppSource, type FileSource, track } from '../analytics.ts'
 import type { LaunchArgs, Shell } from '../sdk/app.ts'
-import { type AppDef, appName, apps, appsFor } from './apps.ts'
+import { type AppDef, appName, appsFor, appsIn } from './apps.ts'
 import { appForScheme, appsForMime, defaultAppFor } from './associations.ts'
 import { confirmDialog, showDialog } from './dialog.ts'
 import { openFileDialog, saveFileDialog } from './fileDialog.ts'
@@ -9,7 +9,7 @@ import { type FsApi, fsApi, legacyFileType, publicPath, useFsVersion, vfs } from
 import { type Pid, type Process, getProcess, processes } from './processes.ts'
 import { settings } from './settings.ts'
 import { VfsError } from './vfs/errors.ts'
-import { LAUNCHER_MIME, URL_MIME } from './vfs/mime.ts'
+import { DIRECTORY_MIME, LAUNCHER_MIME, URL_MIME } from './vfs/mime.ts'
 import type { Content } from './vfs/types.ts'
 import { launcherApp } from './vfs/vfs.ts'
 
@@ -66,17 +66,18 @@ async function openFile(base: ShellOS, path: string, source: AppSource, options:
   // A symlink opens what it points to (and analytics see that path).
   const entry = link.inode.kind === 'symlink' ? vfs.stat(path) : link
   if (entry.inode.kind === 'dir') {
-    base.exec(options.with ?? 'files', { files: [entry.path] }, source)
+    // Files on the desktop, the Drive on the phone.
+    base.exec(options.with ?? defaultAppFor(DIRECTORY_MIME, base.shell)?.id ?? 'files', { files: [entry.path] }, source)
     return
   }
   if (entry.mime === LAUNCHER_MIME && !options.with) {
     const content = await vfs.readFile(entry.path)
     const id = (typeof content === 'string' && content.trim()) || launcherApp(entry.name)
-    if (!apps.has(id)) throw new VfsError('ENOENT', id)
+    if (!appsIn(base.shell).has(id)) throw new VfsError('ENOENT', id)
     base.exec(id, {}, source)
     return
   }
-  const app = options.with ? apps.get(options.with) : defaultAppFor(entry.mime, base.shell)
+  const app = options.with ? appsIn(base.shell).get(options.with) : defaultAppFor(entry.mime, base.shell)
   if (!app) throw new VfsError('EINVAL', entry.displayName, 'noApp')
   track('file_opened', { path: publicPath(entry.path), file_type: legacyFileType(entry.mime), mime: entry.mime, source })
   if (options.with) track('file_opened_with', { app: app.id, mime: entry.mime })
@@ -105,7 +106,7 @@ export function buildOS(base: ShellOS, source: FileSource): OS {
     apps: {
       list: () => appsFor(base.shell).map(info),
       get: (id) => {
-        const app = apps.get(id)
+        const app = appsIn(base.shell).get(id)
         return app && info(app)
       },
       forMime: (mime) => appsForMime(mime, base.shell).map(info),

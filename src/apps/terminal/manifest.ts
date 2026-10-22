@@ -8,5 +8,7 @@ export default defineApp({
   tint: ['#4a5260', '#22262d'],
   window: { width: 720, height: 460 },
   order: 5,
+  // Phones don't have one.
+  shells: ['desktop'],
   entry: () => import('./Terminal.tsx'),
 })

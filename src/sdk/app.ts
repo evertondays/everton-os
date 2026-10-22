@@ -43,6 +43,12 @@ export interface AppManifest {
   listed?: boolean
   /** The component, loaded on demand: import it here, never at the top of the manifest. */
   entry: () => Promise<{ default: ComponentType<AppProps> }>
+  /**
+   * The phone edition, where it differs: usually a component of its own (a
+   * phone app isn't a small window), sometimes a name and icon too. Same id,
+   * so everything that opens the app opens this edition on the phone.
+   */
+  mobile?: Partial<Pick<AppManifest, 'name' | 'icon' | 'tint' | 'entry'>>
 }
 
 export const defineApp = (manifest: AppManifest) => manifest
