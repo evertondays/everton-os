@@ -101,9 +101,10 @@ export function publicPath(path: string): string {
 }
 
 /** App arguments with their paths made public (see publicPath), for the app_opened event. */
-export function publicArgs(args: { files?: string[]; url?: string }): { path?: string; url?: string } {
+export function publicArgs(args: { files?: string[]; url?: string; cwd?: string }): { path?: string; url?: string } {
+  const path = args.files?.[0] ?? args.cwd
   return {
-    ...(args.files?.[0] && { path: publicPath(args.files[0]) }),
+    ...(path && { path: publicPath(path) }),
     ...(args.url && { url: args.url }),
   }
 }

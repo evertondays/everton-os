@@ -40,6 +40,8 @@ interface Registered {
   handle(): WindowHandle | null
   /** Closes the window as its close button does: asking the app first. */
   close(): void
+  /** Asks the app whether it may close (unsaved changes), without closing. */
+  mayClose(): Promise<boolean>
 }
 
 const registered = new Map<string, Registered>()
@@ -124,6 +126,18 @@ export function snapWindow(id: string, zone: SnapZone) {
   const handle = registered.get(id)?.handle()
   handle?.snap(zone)
   handle?.focus()
+}
+
+/**
+ * Asks every window's app whether it may close, the most recent first and one
+ * at a time (each may ask about unsaved changes); false as soon as one says no.
+ */
+export async function mayCloseAll(): Promise<boolean> {
+  for (const win of windowsByRecency()) {
+    const window = registered.get(win.id)
+    if (window && !(await window.mayClose())) return false
+  }
+  return true
 }
 
 export function closeAllWindows() {

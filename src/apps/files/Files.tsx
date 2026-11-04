@@ -14,6 +14,7 @@ import {
   Monitor,
   Pencil,
   RotateCcw,
+  SquareTerminal,
   Trash,
   Trash2,
 } from 'lucide-react'
@@ -256,6 +257,18 @@ export default function Files({ args }: AppProps) {
       }))
   }
 
+  /** "Open in Terminal" for a folder, where there's a Terminal (not on the phone). */
+  const openInTerminal = (folder: string | null): MenuItem[] =>
+    folder && os.apps.get('terminal')
+      ? [
+          {
+            label: t('action.openTerminal'),
+            icon: SquareTerminal,
+            onSelect: () => void os.exec('terminal', { cwd: folder }, 'files'),
+          },
+        ]
+      : []
+
   const itemActions = (entry: Entry): MenuItem[] => {
     const own = canModify(entry)
     if (inTrash) {
@@ -269,6 +282,7 @@ export default function Files({ args }: AppProps) {
     return [
       { label: t('action.open'), icon: ExternalLink, onSelect: () => open(entry) },
       ...openWith(entry),
+      ...openInTerminal(folderOf(entry)),
       ...(own
         ? [
             { label: t('action.rename'), icon: Pencil, onSelect: () => setRenaming(entry.name) },
@@ -282,10 +296,14 @@ export default function Files({ args }: AppProps) {
     if (inTrash) {
       return [{ label: t('action.emptyTrash'), icon: Trash2, onSelect: () => void empty(), disabled: !trashHasItems }]
     }
-    if (!writable) return []
     return [
-      { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file') },
-      { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir') },
+      ...(writable
+        ? [
+            { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file') },
+            { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir') },
+          ]
+        : []),
+      ...openInTerminal(here),
     ]
   }
 

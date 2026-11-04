@@ -129,7 +129,17 @@ export default function MobileShell() {
     [leaveIfAllowed],
   )
 
-  const os = useMemo<ShellOS>(() => ({ shell: 'mobile', exec: open, kill }), [open, kill])
+  /** A phone that "turns off" closes its apps (if they let it) and locks; restarting is the same here. */
+  const shutdown = useCallback(async () => {
+    if (!(await mayLeave(guards, stack.current))) return false
+    track('system_shut_down', { reboot: false, open_windows: stack.current.length })
+    stack.current.forEach((screen) => exit(screen.key))
+    setScreens([])
+    setLocked(true)
+    return true
+  }, [guards])
+
+  const os = useMemo<ShellOS>(() => ({ shell: 'mobile', exec: open, kill, shutdown }), [open, kill, shutdown])
 
   const back = useCallback(() => {
     const screen = top.current

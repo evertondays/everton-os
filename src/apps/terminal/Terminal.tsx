@@ -1,6 +1,7 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { track } from '../../analytics.ts'
 import {
+  type AppProps,
   type Entry,
   VfsError,
   basename,
@@ -65,7 +66,11 @@ const formatBytes = (bytes: number) => {
   return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)}${units[unit]}`
 }
 
-export default function TerminalApp() {
+/** How long `shutdown` leaves its message on screen before the system goes (ms). */
+const SHUTDOWN_DELAY = 900
+
+/** Opened with `cwd` ("Open in Terminal"), it starts in that folder. */
+export default function TerminalApp({ args }: AppProps) {
   const t = useT()
   const locale = useLocale()
   const os = useOS()
@@ -75,7 +80,10 @@ export default function TerminalApp() {
   const resume = useResume()
   const [entries, setEntries] = useState<Line[]>(() => [{ id: 0, output: t('terminal.welcome') }])
   const [input, setInput] = useState('')
-  const [cwd, setCwd] = useState('/')
+  const [cwd, setCwd] = useState(() => {
+    const start = args.cwd ? fs.lookup(args.cwd) : null
+    return start?.inode.kind === 'dir' ? start.path : '/'
+  })
   const typed = useRef<string[]>([])
   const cursor = useRef(0)
   const nextId = useRef(1)
@@ -139,6 +147,20 @@ export default function TerminalApp() {
       {entry.inode.kind === 'symlink' && ` -> ${fs.readlink(entry.path)}`}
     </div>
   )
+
+  /** Adds a line of output on its own, after whatever is on screen. */
+  const print = (output: ReactNode) => setEntries((list) => [...list, { id: nextId.current++, output }])
+
+  /**
+   * Like `shutdown now`: the message, a moment to read it, then the system
+   * goes, once every app agrees (an Editor with unsaved text asks first).
+   */
+  const shutDown = (reboot: boolean) => {
+    window.setTimeout(async () => {
+      if (!(await os.shutdown({ reboot }))) print(t('terminal.shutdownCancelled'))
+    }, SHUTDOWN_DELAY)
+    return t(reboot ? 'terminal.reboot' : 'terminal.shutdown')
+  }
 
   const listing = (list: Entry[]) => (
     <span className="terminal-listing">
@@ -302,6 +324,9 @@ export default function TerminalApp() {
     clear: () => setEntries([]),
     exit: () => appWindow.close(),
     sudo: () => t('terminal.sudo', { user }),
+    shutdown: (args) => shutDown(hasFlag(args, 'r')),
+    poweroff: () => shutDown(false),
+    reboot: () => shutDown(true),
     mkdir: (args) => {
       const target = operand(args)
       if (!target) return t('terminal.usage', { usage: 'mkdir [-p] <folder>' })

@@ -1,4 +1,4 @@
-import { ExternalLink, FilePlus, FolderPlus, Pencil, Settings, Trash2 } from 'lucide-react'
+import { ExternalLink, FilePlus, FolderPlus, Pencil, Settings, SquareTerminal, Trash2 } from 'lucide-react'
 import {
   type DragEvent,
   type KeyboardEvent,
@@ -318,6 +318,12 @@ export function DesktopIcons() {
     setSelected(new Set())
   }
 
+  const openInTerminal = (folder: string): MenuItem => ({
+    label: t('action.openTerminal'),
+    icon: SquareTerminal,
+    onSelect: () => void os.exec('terminal', { cwd: folder }, 'desktop_menu'),
+  })
+
   const onAreaContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
     if (event.target !== event.currentTarget) return
@@ -329,6 +335,7 @@ export function DesktopIcons() {
       items: [
         { label: t('action.newFile'), icon: FilePlus, onSelect: () => void create('file', { x, y }) },
         { label: t('action.newFolder'), icon: FolderPlus, onSelect: () => void create('dir', { x, y }) },
+        openInTerminal(DESKTOP_PATH),
         {
           label: appName(apps.get('settings')!, locale),
           icon: Settings,
@@ -349,6 +356,8 @@ export function DesktopIcons() {
     const items: MenuItem[] = [
       { label: t('action.open'), icon: ExternalLink, onSelect: () => targets.forEach((other) => other.open()) },
     ]
+    // A folder (or a shortcut to one), but not the Trash.
+    if (targets.length === 1 && icon.folder && icon.folder !== TRASH_PATH) items.push(openInTerminal(icon.folder))
     if (own.length === 1 && targets.length === 1) {
       items.push({ label: t('action.rename'), icon: Pencil, onSelect: () => setRenaming(icon.id) })
     }

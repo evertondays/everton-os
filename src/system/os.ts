@@ -26,6 +26,11 @@ export interface ShellOS {
   exec(app: string, args: LaunchArgs, source: AppSource): Pid | null
   /** Asks a process to end; it may keep running if it has unsaved changes and the visitor says so. */
   kill(pid: Pid): void
+  /**
+   * Turns the system off (or restarts it), once every app agrees to close
+   * (unsaved changes are asked about). Resolves with false if one refused.
+   */
+  shutdown(options?: { reboot?: boolean }): Promise<boolean>
 }
 
 /** An app as other apps see it: its name in the current language. */

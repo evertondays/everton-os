@@ -78,6 +78,7 @@ export function Window({ win }: { win: Win }) {
       registerWindow(id, {
         handle: () => handle.current,
         close: () => void guardedClose(id, closeGuard, asking),
+        mayClose: async () => !closeGuard.current || (await closeGuard.current()),
       }),
     [id, handle],
   )

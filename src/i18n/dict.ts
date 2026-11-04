@@ -24,6 +24,7 @@ const pt = {
 
   'action.open': 'Abrir',
   'action.openWith': 'Abrir com {app}',
+  'action.openTerminal': 'Abrir no terminal',
   'action.newFile': 'Novo arquivo de texto',
   'action.newFolder': 'Nova pasta',
   'action.rename': 'Renomear',
@@ -73,6 +74,8 @@ const pt = {
     'Pronto. Abrindo tela de login',
   ].join('\n'),
   'boot.skip': 'Pressione qualquer tecla para pular',
+  'power.off': 'Desligado. Pressione qualquer tecla para ligar.',
+  'power.on': 'Ligar',
   'login.enter': 'Clique para entrar',
   'login.classic': 'Com pressa? Veja a versão clássica do currículo',
 
@@ -163,6 +166,7 @@ const pt = {
     '  rm [-r] <caminho>   move para a lixeira',
     '  ps, kill <pid>      processos (apps abertos)',
     '  mount, df           sistemas de arquivos e espaço',
+    '  shutdown [-r]       desliga o sistema (-r: reinicia; também poweroff, reboot)',
     '  skills              minhas habilidades',
     '  contato             como falar comigo',
     '  neofetch            sobre o sistema',
@@ -182,6 +186,9 @@ const pt = {
   'terminal.notText': 'editor: {name}: não é um arquivo de texto. Use "open {name}".',
   'terminal.noProcess': 'kill: ({pid}): processo não encontrado',
   'terminal.notLink': '{name}: não é um link simbólico',
+  'terminal.shutdown': 'O sistema vai desligar agora.',
+  'terminal.reboot': 'O sistema vai reiniciar agora.',
+  'terminal.shutdownCancelled': 'shutdown: cancelado, um app ainda tem alterações abertas.',
 
   'gallery.empty': 'Nenhuma imagem por aqui ainda.',
   'gallery.previous': 'Imagem anterior',
@@ -255,6 +262,7 @@ const en: Record<TKey, string> = {
 
   'action.open': 'Open',
   'action.openWith': 'Open with {app}',
+  'action.openTerminal': 'Open in Terminal',
   'action.newFile': 'New text file',
   'action.newFolder': 'New folder',
   'action.rename': 'Rename',
@@ -304,6 +312,8 @@ const en: Record<TKey, string> = {
     'Ready. Opening login screen',
   ].join('\n'),
   'boot.skip': 'Press any key to skip',
+  'power.off': 'Powered off. Press any key to turn on.',
+  'power.on': 'Turn on',
   'login.enter': 'Click to log in',
   'login.classic': 'In a hurry? See the classic version of the résumé',
 
@@ -394,6 +404,7 @@ const en: Record<TKey, string> = {
     '  rm [-r] <path>      move to the Trash',
     '  ps, kill <pid>      processes (open apps)',
     '  mount, df           file systems and space',
+    '  shutdown [-r]       power off the system (-r: restart; also poweroff, reboot)',
     '  skills              my skills',
     '  contact             how to reach me',
     '  neofetch            about the system',
@@ -413,6 +424,9 @@ const en: Record<TKey, string> = {
   'terminal.notText': 'editor: {name}: not a text file. Use "open {name}".',
   'terminal.noProcess': 'kill: ({pid}): no such process',
   'terminal.notLink': '{name}: not a symbolic link',
+  'terminal.shutdown': 'The system is going down for power-off now.',
+  'terminal.reboot': 'The system is going down for reboot now.',
+  'terminal.shutdownCancelled': 'shutdown: cancelled, an app still has changes open.',
 
   'gallery.empty': 'No images here yet.',
   'gallery.previous': 'Previous image',

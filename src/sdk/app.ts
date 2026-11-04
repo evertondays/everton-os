@@ -17,6 +17,8 @@ export interface LaunchArgs {
   files?: string[]
   /** Address to load. */
   url?: string
+  /** Folder to start in (the Terminal's working directory). */
+  cwd?: string
 }
 
 export interface AppProps {

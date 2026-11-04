@@ -38,6 +38,8 @@ export interface AnalyticsEvents {
   boot_skipped: { method: 'keyboard' | 'pointer' }
   portfolio_entered: { entry_point: 'desktop_login' | 'mobile_lock_screen' }
   session_logged_out: { open_windows: number }
+  /** `shutdown` (or `reboot`) in the Terminal. */
+  system_shut_down: { reboot: boolean; open_windows: number }
   classic_version_opened: { source: 'login' | 'app_menu' | 'about' | 'settings' }
   source_code_opened: { source: 'settings' }
   theme_changed: { theme: 'light' | 'dark'; source: SettingsSource }

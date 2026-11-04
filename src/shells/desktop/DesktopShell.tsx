@@ -12,20 +12,24 @@ import { CalendarFlyout } from './CalendarFlyout.tsx'
 import { DesktopIcons } from './DesktopIcons.tsx'
 import { Login } from './Login.tsx'
 import { Panel } from './Panel.tsx'
+import { PowerOff } from './PowerOff.tsx'
 import { SnapAssist } from './SnapAssist.tsx'
 import { Switcher } from './Switcher.tsx'
 import { Window } from './Window.tsx'
-import { closeAllWindows, killWindow, openWindow, windows } from './windows.ts'
+import { closeAllWindows, killWindow, mayCloseAll, openWindow, windows } from './windows.ts'
 import './desktop.css'
 
-type Phase = 'boot' | 'login' | 'desktop'
+/** `off` comes after `shutdown` in the Terminal, until the visitor turns the system on again. */
+type Phase = 'boot' | 'login' | 'desktop' | 'off'
 
 // Boot and login play once per tab; a reload goes straight back to the desktop.
 const SESSION_KEY = 'everton-os:session'
 
+/** Where turning on starts: the boot log, or straight at the login when motion is reduced. */
+const startPhase = (): Phase => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'login' : 'boot')
+
 function initialPhase(): Phase {
-  if (sessionStorage.getItem(SESSION_KEY)) return 'desktop'
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'login' : 'boot'
+  return sessionStorage.getItem(SESSION_KEY) ? 'desktop' : startPhase()
 }
 
 export default function DesktopShell() {
@@ -34,10 +38,19 @@ export default function DesktopShell() {
   const ready = useFsReady()
 
   const showLogin = useCallback(() => setPhase('login'), [])
+  const powerOn = useCallback(() => setPhase(startPhase()), [])
+
+  /** Leaves the desktop for the black screen, or for the boot log when restarting. */
+  const shutDown = useCallback((reboot: boolean) => {
+    track('system_shut_down', { reboot, open_windows: windows.get().windows.length })
+    sessionStorage.removeItem(SESSION_KEY)
+    setPhase(reboot ? startPhase() : 'off')
+  }, [])
 
   // While boot and login play, the apps load in the background, so they open at once.
   useEffect(() => preloadApps('desktop'), [])
 
+  if (phase === 'off') return <PowerOff onPowerOn={powerOn} />
   if (phase === 'boot') return <Boot onDone={showLogin} />
   if (phase === 'desktop' && !ready) return <Loading />
   if (phase === 'login') {
@@ -57,6 +70,7 @@ export default function DesktopShell() {
         sessionStorage.removeItem(SESSION_KEY)
         setPhase('login')
       }}
+      onShutDown={shutDown}
     />
   )
 }
@@ -67,14 +81,27 @@ function Loading() {
   return <div className="desktop" style={{ backgroundImage: wallpaper.css }} aria-busy />
 }
 
-function Desktop({ onLogout }: { onLogout(): void }) {
+function Desktop({ onLogout, onShutDown }: { onLogout(): void; onShutDown(reboot: boolean): void }) {
   const wallpaper = useWallpaper()
   const list = useStore(windows, (s) => s.windows)
   const [menuOpen, setMenuOpen] = useState(false)
   const firstVisit = useRef(!settings.get().visited)
   const menuTrigger = useRef<'panel_button' | 'super_key'>('panel_button')
 
-  const os = useMemo<ShellOS>(() => ({ shell: 'desktop', exec: openWindow, kill: killWindow }), [])
+  const os = useMemo<ShellOS>(
+    () => ({
+      shell: 'desktop',
+      exec: openWindow,
+      kill: killWindow,
+      // Every app gets its say first (unsaved changes); the windows close when the desktop goes.
+      async shutdown({ reboot = false } = {}) {
+        if (!(await mayCloseAll())) return false
+        onShutDown(reboot)
+        return true
+      },
+    }),
+    [onShutDown],
+  )
   const closeMenu = useCallback(() => setMenuOpen(false), [])
   // The calendar that opens from the clock in the panel.
   const [calendarOpen, setCalendarOpen] = useState(false)

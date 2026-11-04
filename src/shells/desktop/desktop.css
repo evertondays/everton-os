@@ -673,6 +673,55 @@
   font-size: 12px;
 }
 
+/* Turned off (PowerOff.tsx): black, with the power button in the middle. */
+.power-off {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #000;
+  color: #6a7482;
+  font-size: 13px;
+  animation: power-off-in 0.6s ease-out;
+}
+
+.power-off-button {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  color: #cfd6de;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.power-off-button:hover,
+.power-off-button:focus-visible {
+  border-color: rgba(95, 217, 139, 0.7);
+  color: #5fd98b;
+  box-shadow: 0 0 24px rgba(95, 217, 139, 0.25);
+}
+
+@keyframes power-off-in {
+  from {
+    background: #0b0d10;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .power-off {
+    animation: none;
+  }
+}
+
 /* Login */
 
 .login-shade {

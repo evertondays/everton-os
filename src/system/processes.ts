@@ -40,4 +40,4 @@ export function exit(pid: Pid) {
 export const getProcess = (pid: Pid) => processes.get().list.find((process) => process.pid === pid)
 
 /** Whether `args` asks for anything (single-instance apps only get the ones that do). */
-export const hasArgs = (args: LaunchArgs) => !!(args.url || args.files?.length || args.argv?.length)
+export const hasArgs = (args: LaunchArgs) => !!(args.url || args.cwd || args.files?.length || args.argv?.length)
