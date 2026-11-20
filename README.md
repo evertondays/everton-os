@@ -18,7 +18,8 @@ Todo o conteúdo sai de **`src/data/curriculo.json`** (formato baseado no [JSON 
 
 - Textos que mudam com o idioma são objetos `{ "pt": "…", "en": "…" }`; os demais são strings simples.
 - `basics.image`: caminho de uma foto dentro de `public/` (ex.: `"media/foto.jpg"`) ou uma URL. Sem foto, aparecem as iniciais.
-- `basics.intro`: versão de duas frases do resumo, usada no app Sobre mim. Sem ela, o app mostra `basics.summary` inteiro.
+- `basics.intro`: versão de duas frases do resumo, usada no app Sobre mim e como descrição da versão clássica no Google. Sem ela, o app mostra `basics.summary` inteiro.
+- `basics.url`: endereço do site publicado (ex.: `"https://evertondays.com/"`). Dele saem o `sitemap.xml`, o `robots.txt`, os links canônicos, as imagens de prévia e os dados estruturados (JSON-LD) para buscadores. Sem ele, o site funciona, mas sem essas tags.
 - Imagens (`projects[].images`, `photos`, `certificates[].image`): `src` é um caminho dentro de `public/` ou uma URL. Sem `src`, é desenhado um placeholder.
 - `projects[].demo`: endereço que o app Navegador abre dentro de uma janela.
 - `projects[].repos`: repositórios do projeto (`{ "url": "…" }`). Quando há mais de um, `label` os diferencia (`"backend"`, `"mobile"`): vira o sufixo do arquivo `.url` e aparece ao lado do link.

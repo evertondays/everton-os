@@ -3,6 +3,7 @@ import type { Resume } from '../src/data/types.ts'
 import { type TKey, translate } from '../src/i18n/dict.ts'
 import { repoText } from '../src/system/content.ts'
 import { formatMonth, formatPeriod } from '../src/system/format.ts'
+import { CLASSIC_PATHS, HREFLANG, OG_LOCALE, absolute, personJsonLd } from './seo.ts'
 
 // The classic version: the whole résumé as one static, print-ready HTML page.
 // It needs no JavaScript, so search engines and screen readers get everything.
@@ -43,6 +44,28 @@ export function renderClassic(resume: Resume, locale: Locale): string {
   // The page lives at /classic/ (pt) or /classic/en/ (en).
   const root = locale === 'pt' ? '../' : '../../'
   const other = locale === 'pt' ? { href: 'en/', label: 'English' } : { href: '../', label: 'Português' }
+  const title = `${basics.name} — ${basics.label}`
+  // Search results show about 160 characters: the two-sentence intro, not the whole summary.
+  const description = basics.intro ?? basics.summary
+  const site = basics.url
+  // Absolute addresses need the site's (basics.url); without it the page still works, just without them.
+  const seo = site
+    ? [
+        `<link rel="canonical" href="${absolute(site, CLASSIC_PATHS[locale])}">`,
+        ...(Object.entries(CLASSIC_PATHS) as [Locale, string][]).map(
+          ([language, path]) => `<link rel="alternate" hreflang="${HREFLANG[language]}" href="${absolute(site, path)}">`,
+        ),
+        `<link rel="alternate" hreflang="x-default" href="${absolute(site, CLASSIC_PATHS.pt)}">`,
+        '<meta property="og:type" content="profile">',
+        `<meta property="og:url" content="${absolute(site, CLASSIC_PATHS[locale])}">`,
+        `<meta property="og:title" content="${escape(title)}">`,
+        `<meta property="og:description" content="${escape(description)}">`,
+        `<meta property="og:locale" content="${OG_LOCALE[locale]}">`,
+        ...(basics.image ? [`<meta property="og:image" content="${absolute(site, basics.image)}">`] : []),
+        '<meta name="twitter:card" content="summary">',
+        `<script type="application/ld+json">${personJsonLd(resume, site)}</script>`,
+      ].join('\n')
+    : ''
 
   const list = (items: string[]) =>
     items.length ? `<ul class="items">${items.map((item) => `<li>${escape(item)}</li>`).join('')}</ul>` : ''
@@ -101,9 +124,10 @@ ${item.summary ? `<p>${escape(item.summary)}</p>` : ''}
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escape(basics.name)} — ${escape(basics.label)}</title>
-<meta name="description" content="${escape(basics.summary)}">
+<title>${escape(title)}</title>
+<meta name="description" content="${escape(description)}">
 <link rel="icon" type="image/svg+xml" href="${root}favicon.svg">
+${seo}
 <style>${STYLE}</style>
 </head>
 <body>
